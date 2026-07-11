@@ -1,0 +1,1369 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Primary Zone</title>
+  <style>
+    :root {
+      --dissolve-duration: 1s;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #000000;
+      color: #f2f4f7;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .primary-main {
+      height: 100%;
+      aspect-ratio: 3 / 2;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      border-right: 1px solid #000000;
+    }
+
+    .media-frame {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .media-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000000;
+      opacity: 0;
+      transition: opacity var(--dissolve-duration) ease;
+      z-index: 1;
+    }
+
+    .media-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000000;
+      display: none;
+      z-index: 2;
+    }
+
+    .media-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.4rem, 2vw, 2.6rem);
+      color: #c8cdd4;
+      text-align: center;
+      padding: 2vh 2vw;
+      z-index: 3;
+    }
+
+    .primary-ending {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000000;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    body.trivia-settings-open {
+      position: relative;
+    }
+
+    body.trivia-settings-open .primary-main {
+      display: none;
+    }
+
+    body.trivia-settings-open .primary-ending {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      flex: none;
+    }
+
+    #settingsModal {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: none;
+      z-index: 9999;
+    }
+
+    #settingsModal.is-open {
+      display: block;
+    }
+
+    #settingsModal .modal-panel {
+      width: 340px;
+      padding: 14px;
+      background: rgba(18, 22, 28, 0.96);
+      color: #f2f4f7;
+      border-radius: 8px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    }
+
+    body.settings-open #settingsModal.is-open {
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9, 11, 14, 0.7);
+      padding: 4vh 4vw;
+    }
+
+    body.settings-open #settingsModal .modal-panel {
+      width: min(90vw, 720px);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    #settingsModal .modal-panel .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    #settingsModal .modal-panel h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    #settingsModal .modal-panel .close-button {
+      border: none;
+      background: transparent;
+      color: #c2c9d1;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    #settingsModal .modal-panel .close-button:hover {
+      color: #ffffff;
+    }
+
+    #settingsModal .modal-panel label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    #settingsModal .modal-panel .inline-label {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #settingsModal .modal-panel input,
+    #settingsModal .modal-panel select {
+      width: 100%;
+    }
+
+    #settingsModal .modal-panel .inline-label input {
+      width: auto;
+    }
+
+    #settingsModal .modal-panel input[type="text"],
+    #settingsModal .modal-panel input[type="number"] {
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #2b3340;
+      background: #0f1318;
+      color: #f2f4f7;
+    }
+
+    #settingsModal .modal-panel button {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid #2b3340;
+      background: #1c2430;
+      color: #f2f4f7;
+      cursor: pointer;
+    }
+
+    #settingsModal .modal-panel button:hover {
+      background: #232c3a;
+    }
+
+    #settingsModal .modal-panel .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #aab3bd;
+      margin: 12px 0 6px;
+    }
+
+    #settingsModal .modal-panel .log-status {
+      font-size: 12px;
+      color: #aab3bd;
+      margin-top: 6px;
+    }
+
+    #settingsModal .modal-panel .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    #settingsModal .modal-panel .modal-actions button {
+      width: 100%;
+    }
+
+    #settingsModal .modal-panel .playlist-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 32vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    #settingsModal .modal-panel .playlist-item {
+      display: grid;
+      grid-template-columns: 1fr 90px auto;
+      gap: 8px;
+      align-items: center;
+      background: rgba(15, 19, 24, 0.6);
+      border: 1px solid #2b3340;
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+
+    #settingsModal .modal-panel .item-name {
+      font-size: 12px;
+      color: #d2d7de;
+      word-break: break-all;
+    }
+
+    #settingsModal .modal-panel .item-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    #settingsModal .modal-panel .item-actions button {
+      padding: 4px 6px;
+      font-size: 12px;
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+  <section class="primary-main">
+    <div class="media-frame">
+      <img id="mediaImageA" class="media-image" alt="">
+      <img id="mediaImageB" class="media-image" alt="">
+      <video id="mediaVideo" class="media-video" muted playsinline></video>
+      <div class="media-placeholder" id="mediaPlaceholder">No media configured</div>
+    </div>
+  </section>
+
+  <iframe class="primary-ending" id="primaryEndingFrame" src="primaryending.html" title="Trivia Panel" scrolling="no"></iframe>
+
+  <div id="settingsModal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Primary Media Playlist</h3>
+        <button class="close-button" type="button" aria-label="Close">x</button>
+      </div>
+
+      <label>Playlist
+        <select id="playlistSelect"></select>
+      </label>
+
+      <div class="modal-actions">
+        <button id="newPlaylist" type="button">New Playlist</button>
+        <button id="deletePlaylist" type="button">Delete Playlist</button>
+      </div>
+
+      <label>Asset
+        <select id="assetSelect"></select>
+      </label>
+
+      <label>Duration (sec)
+        <input id="durationInput" type="number" min="1" max="600" value="5">
+      </label>
+
+      <button id="addItem" type="button">Add to Playlist</button>
+
+      <div class="section-title">Transitions</div>
+      <label class="inline-label">
+        <input id="dissolveToggle" type="checkbox">
+        Enable dissolve between images
+      </label>
+
+      <label>Dissolve Duration (sec)
+        <input id="dissolveDuration" type="number" min="0.2" max="5" step="0.1" value="1">
+      </label>
+
+      <div class="section-title">Sync</div>
+      <label class="inline-label">
+        <input id="playlistPinToggle" type="checkbox">
+        Pin this NUC to local primary playlist
+      </label>
+      <div class="log-status" id="playlistPinStatus"></div>
+
+      <div class="section-title">Playlist Items</div>
+      <div class="playlist-items" id="playlistItems"></div>
+
+      <div class="section-title">Logging</div>
+      <div class="modal-actions">
+        <button id="downloadLog" type="button">Download Log</button>
+        <button id="clearLog" type="button">Clear Log</button>
+      </div>
+      <div class="log-status" id="logStatus"></div>
+    </div>
+  </div>
+
+  <script src="assets/bdn-identity.js"></script>
+  <script src="assets/bdn-content-paths.js"></script>
+  <script src="assets/bdn-runtime-config.js"></script>
+  <script src="assets/sync.js"></script>
+  <script>
+    window.beaconIdentity?.applyIdentityDataset(document.documentElement);
+
+    const MANIFEST_URL = "assets/primary/manifest.json";
+    const ASSET_VERSION_URL = "data/primary-assets.json";
+    const DEFAULT_DURATION_SECONDS = 5;
+    const DISSOLVE_MIN_SECONDS = 0.2;
+    const DISSOLVE_MAX_SECONDS = 5;
+    const DISSOLVE_DEFAULT_SECONDS = 1;
+    const LOG_STORAGE_KEY = "beacon_primary_playback_log";
+    const LOG_MAX_ENTRIES = 2000;
+    const LOG_FILE_NAME = "primary-playback-log.csv";
+    const PLAYLISTS_KEY = "beacon_primary_playlists";
+    const ACTIVE_PLAYLIST_KEY = "beacon_primary_playlist_active";
+    const PLAYLIST_PINNED_KEY = "beacon_primary_playlist_pinned";
+    const DISSOLVE_ENABLED_KEY = "beacon_primary_dissolve_enabled";
+    const DISSOLVE_DURATION_KEY = "beacon_primary_dissolve_duration";
+    const RESUME_STATE_KEY = "beacon_primary_resume_state";
+
+    const mediaImages = [
+      document.getElementById("mediaImageA"),
+      document.getElementById("mediaImageB")
+    ];
+    const mediaVideo = document.getElementById("mediaVideo");
+    const mediaPlaceholder = document.getElementById("mediaPlaceholder");
+    const mediaFrame = document.querySelector(".media-frame");
+    const settingsModal = document.getElementById("settingsModal");
+    const primaryEndingFrame = document.getElementById("primaryEndingFrame");
+
+    const playlistSelect = document.getElementById("playlistSelect");
+    const newPlaylistButton = document.getElementById("newPlaylist");
+    const deletePlaylistButton = document.getElementById("deletePlaylist");
+    const assetSelect = document.getElementById("assetSelect");
+    const durationInput = document.getElementById("durationInput");
+    const addItemButton = document.getElementById("addItem");
+    const playlistItems = document.getElementById("playlistItems");
+    const playlistPinToggle = document.getElementById("playlistPinToggle");
+    const playlistPinStatus = document.getElementById("playlistPinStatus");
+    const dissolveToggle = document.getElementById("dissolveToggle");
+    const dissolveDurationInput = document.getElementById("dissolveDuration");
+    const downloadLogButton = document.getElementById("downloadLog");
+    const clearLogButton = document.getElementById("clearLog");
+    const logStatus = document.getElementById("logStatus");
+
+    let manifestItems = [];
+    let manifestDefaultDuration = DEFAULT_DURATION_SECONDS;
+    let playlists = {};
+    let activePlaylistName = "Default";
+    let playbackIndex = 0;
+    let playbackTimer = null;
+    let dissolveTimer = null;
+    let activeImageIndex = 0;
+    let currentType = null;
+    let currentItem = null;
+    let activePlayToken = 0;
+    let loggedPlayToken = null;
+    let dissolveEnabled = false;
+    let dissolveDurationMs = DISSOLVE_DEFAULT_SECONDS * 1000;
+    let playlistPinned = false;
+    let playbackLog = [];
+    let syncClient = null;
+    let assetVersion = "";
+
+    function notifyParent(target, open) {
+      if (!window.parent) return;
+      window.parent.postMessage({ type: "beacon-settings-state", target, open }, "*");
+    }
+
+    function setSettingsVisible(visible) {
+      settingsModal.classList.toggle("is-open", visible);
+      document.body.classList.toggle("settings-open", visible);
+      notifyParent("primary", visible);
+    }
+
+    function setTriviaLayout(open) {
+      document.body.classList.toggle("trivia-settings-open", open);
+    }
+
+    function requestTriviaOpen() {
+      setTriviaLayout(true);
+      if (primaryEndingFrame && primaryEndingFrame.contentWindow) {
+        primaryEndingFrame.contentWindow.postMessage({ type: "beacon-request-open", target: "trivia" }, "*");
+      }
+    }
+
+    function requestTriviaClose() {
+      setTriviaLayout(false);
+      if (primaryEndingFrame && primaryEndingFrame.contentWindow) {
+        primaryEndingFrame.contentWindow.postMessage({ type: "beacon-request-close", target: "trivia" }, "*");
+      }
+      notifyParent("trivia", false);
+    }
+
+    function inferTypeFromSrc(src) {
+      const ext = src.split(".").pop().toLowerCase();
+      if (["mp4", "webm", "ogg"].includes(ext)) {
+        return "video";
+      }
+      return "image";
+    }
+
+    function resolveAssetUrl(src) {
+      if (!assetVersion) return src;
+      try {
+        const url = new URL(src, window.location.href);
+        url.searchParams.set("v", assetVersion);
+        return url.toString();
+      } catch (error) {
+        const joiner = src.includes("?") ? "&" : "?";
+        return `${src}${joiner}v=${encodeURIComponent(assetVersion)}`;
+      }
+    }
+
+    async function loadAssetVersion() {
+      try {
+        const result = await window.beaconContentPaths.fetchFirstJson(ASSET_VERSION_URL, { cache: "no-store" });
+        const data = result.json;
+        if (data && data.version !== undefined && data.version !== null) {
+          assetVersion = String(data.version).trim();
+        }
+      } catch (error) {
+        assetVersion = "";
+      }
+    }
+
+    function warmPrimaryMediaCache() {
+      if (!("serviceWorker" in navigator)) return;
+
+      const urls = new Set([
+        ...window.beaconContentPaths.buildLayeredPaths(MANIFEST_URL),
+        ...window.beaconContentPaths.buildLayeredPaths(ASSET_VERSION_URL)
+      ]);
+      manifestItems.forEach((item) => {
+        urls.add(item.src);
+        urls.add(resolveAssetUrl(item.src));
+      });
+
+      const message = { type: "CACHE_URLS", urls: Array.from(urls) };
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage(message);
+        return;
+      }
+
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          if (registration.active) {
+            registration.active.postMessage(message);
+          }
+        })
+        .catch(() => {
+          // Cache warming is best-effort.
+        });
+    }
+
+    function normalizeManifestItem(item) {
+      if (!item || !item.src) return null;
+      const src = String(item.src).trim();
+      if (!src) return null;
+      const type = item.type ? String(item.type) : inferTypeFromSrc(src);
+      const duration = Number(item.durationSeconds);
+      return {
+        src,
+        type,
+        durationSeconds: Number.isFinite(duration) ? duration : null
+      };
+    }
+
+    function sanitizeDuration(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return manifestDefaultDuration;
+      return Math.max(1, Math.min(600, Math.round(numeric)));
+    }
+
+    function sanitizeDissolveDuration(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DISSOLVE_DEFAULT_SECONDS;
+      return Math.min(DISSOLVE_MAX_SECONDS, Math.max(DISSOLVE_MIN_SECONDS, numeric));
+    }
+
+    function getFileName(path) {
+      const parts = path.split("/");
+      return parts[parts.length - 1] || path;
+    }
+
+    function loadPlaybackLog() {
+      const saved = localStorage.getItem(LOG_STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            playbackLog = parsed;
+          }
+        } catch {
+          playbackLog = [];
+        }
+      }
+      updateLogStatus();
+    }
+
+    function savePlaybackLog() {
+      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(playbackLog));
+    }
+
+    function updateLogStatus() {
+      if (!logStatus) return;
+      const count = playbackLog.length;
+      if (!count) {
+        logStatus.textContent = "No log entries yet.";
+        return;
+      }
+      const last = playbackLog[count - 1];
+      logStatus.textContent = `Entries: ${count} | Last: ${last.timestamp} ${last.event} ${getFileName(last.src)}`;
+    }
+
+    function addPlaybackLogEntry(eventType, item, message) {
+      const entry = {
+        timestamp: new Date().toISOString(),
+        playlist: activePlaylistName,
+        event: eventType,
+        type: item ? item.type : "",
+        src: item ? item.src : "",
+        durationSeconds: item && item.durationSeconds ? item.durationSeconds : "",
+        message: message || ""
+      };
+      playbackLog.push(entry);
+      if (playbackLog.length > LOG_MAX_ENTRIES) {
+        playbackLog = playbackLog.slice(playbackLog.length - LOG_MAX_ENTRIES);
+      }
+      savePlaybackLog();
+      updateLogStatus();
+    }
+
+    function escapeCsv(value) {
+      const stringValue = String(value ?? "");
+      if (stringValue.includes("\"") || stringValue.includes(",") || stringValue.includes("\n")) {
+        return `"${stringValue.replace(/"/g, "\"\"")}"`;
+      }
+      return stringValue;
+    }
+
+    function downloadLog() {
+      if (!playbackLog.length) {
+        updateLogStatus();
+        return;
+      }
+      const headers = ["timestamp", "playlist", "event", "type", "src", "durationSeconds", "message"];
+      const lines = [headers.join(",")];
+      playbackLog.forEach((entry) => {
+        const row = headers.map((key) => escapeCsv(entry[key] || ""));
+        lines.push(row.join(","));
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = LOG_FILE_NAME;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadManifest() {
+      try {
+        const result = await window.beaconContentPaths.fetchFirstJson(MANIFEST_URL, { cache: "no-store" });
+        const data = result.json;
+        manifestDefaultDuration = sanitizeDuration(data.defaultDurationSeconds || DEFAULT_DURATION_SECONDS);
+        manifestItems = Array.isArray(data.items)
+          ? data.items.map(normalizeManifestItem).filter(Boolean)
+          : [];
+      } catch (error) {
+        manifestDefaultDuration = DEFAULT_DURATION_SECONDS;
+        manifestItems = [];
+      }
+    }
+
+    function loadStoredPlaylists() {
+      const saved = localStorage.getItem(PLAYLISTS_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            playlists = parsed;
+          }
+        } catch {
+          playlists = {};
+        }
+      }
+
+      const storedActive = localStorage.getItem(ACTIVE_PLAYLIST_KEY);
+      if (storedActive && playlists[storedActive]) {
+        activePlaylistName = storedActive;
+      }
+
+      if (!Object.keys(playlists).length) {
+        playlists = {
+          Default: manifestItems.map(item => ({
+            src: item.src,
+            type: item.type,
+            durationSeconds: sanitizeDuration(item.durationSeconds || manifestDefaultDuration)
+          }))
+        };
+        activePlaylistName = "Default";
+        savePlaylists();
+      }
+    }
+
+    function savePlaylists() {
+      localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(playlists));
+      localStorage.setItem(ACTIVE_PLAYLIST_KEY, activePlaylistName);
+      if (syncClient && !playlistPinned) {
+        syncClient.commit();
+      }
+    }
+
+    function updatePlaylistPinStatus() {
+      if (!playlistPinStatus) return;
+      playlistPinStatus.textContent = playlistPinned
+        ? "Pinned: this NUC ignores primary playlist sync and keeps its local playlist."
+        : "Unpinned: this NUC follows the region primary playlist sync.";
+    }
+
+    function loadPlaylistPinSetting() {
+      playlistPinned = localStorage.getItem(PLAYLIST_PINNED_KEY) === "true";
+      if (playlistPinToggle) {
+        playlistPinToggle.checked = playlistPinned;
+      }
+      updatePlaylistPinStatus();
+    }
+
+    function setPlaylistPinned(pinned) {
+      playlistPinned = Boolean(pinned);
+      localStorage.setItem(PLAYLIST_PINNED_KEY, String(playlistPinned));
+      if (playlistPinToggle) {
+        playlistPinToggle.checked = playlistPinned;
+      }
+      updatePlaylistPinStatus();
+      if (!playlistPinned && syncClient) {
+        syncClient.commitNow();
+      }
+    }
+
+    function getActivePlaylist() {
+      const list = playlists[activePlaylistName];
+      return Array.isArray(list) ? list : [];
+    }
+
+    function populatePlaylistSelect() {
+      playlistSelect.innerHTML = "";
+      Object.keys(playlists).forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        playlistSelect.appendChild(option);
+      });
+      playlistSelect.value = activePlaylistName;
+    }
+
+    function populateAssetSelect() {
+      assetSelect.innerHTML = "";
+      if (!manifestItems.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No assets in manifest";
+        assetSelect.appendChild(option);
+        assetSelect.disabled = true;
+        addItemButton.disabled = true;
+        return;
+      }
+
+      manifestItems.forEach((item, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${getFileName(item.src)} (${item.type})`;
+        assetSelect.appendChild(option);
+      });
+      assetSelect.disabled = false;
+      addItemButton.disabled = false;
+    }
+
+    function renderPlaylistItems() {
+      playlistItems.innerHTML = "";
+      const list = getActivePlaylist();
+      if (!list.length) {
+        const empty = document.createElement("div");
+        empty.className = "item-name";
+        empty.textContent = "No items in this playlist.";
+        playlistItems.appendChild(empty);
+        return;
+      }
+
+      list.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "playlist-item";
+        row.dataset.index = String(index);
+
+        const name = document.createElement("div");
+        name.className = "item-name";
+        name.textContent = `${getFileName(item.src)} (${item.type})`;
+
+        const duration = document.createElement("input");
+        duration.type = "number";
+        duration.min = "1";
+        duration.max = "600";
+        duration.value = String(sanitizeDuration(item.durationSeconds || manifestDefaultDuration));
+        duration.className = "item-duration";
+        duration.dataset.index = String(index);
+
+        const actions = document.createElement("div");
+        actions.className = "item-actions";
+
+        const upButton = document.createElement("button");
+        upButton.type = "button";
+        upButton.textContent = "Up";
+        upButton.dataset.action = "up";
+        upButton.dataset.index = String(index);
+
+        const downButton = document.createElement("button");
+        downButton.type = "button";
+        downButton.textContent = "Down";
+        downButton.dataset.action = "down";
+        downButton.dataset.index = String(index);
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "Remove";
+        removeButton.dataset.action = "remove";
+        removeButton.dataset.index = String(index);
+
+        actions.appendChild(upButton);
+        actions.appendChild(downButton);
+        actions.appendChild(removeButton);
+
+        row.appendChild(name);
+        row.appendChild(duration);
+        row.appendChild(actions);
+        playlistItems.appendChild(row);
+      });
+    }
+
+    function clearPlaybackTimers() {
+      if (playbackTimer) {
+        clearTimeout(playbackTimer);
+        playbackTimer = null;
+      }
+      if (dissolveTimer) {
+        clearTimeout(dissolveTimer);
+        dissolveTimer = null;
+      }
+    }
+
+    function hideImages() {
+      mediaImages.forEach(image => {
+        image.onload = null;
+        image.onerror = null;
+        image.style.display = "none";
+        image.style.opacity = 0;
+      });
+    }
+
+    function hideVideo() {
+      mediaVideo.pause();
+      mediaVideo.removeAttribute("src");
+      mediaVideo.load();
+      mediaVideo.style.display = "none";
+    }
+
+    function showPlaceholder(message) {
+      clearPlaybackTimers();
+      hideImages();
+      hideVideo();
+      mediaPlaceholder.style.display = "flex";
+      mediaPlaceholder.textContent = message;
+      currentType = null;
+    }
+
+    function showImageImmediate(src, token, itemSnapshot) {
+      const active = mediaImages[activeImageIndex];
+      const inactive = mediaImages[1 - activeImageIndex];
+      inactive.onload = null;
+      inactive.onerror = null;
+      inactive.style.display = "none";
+      inactive.style.opacity = 0;
+      active.onload = () => {
+        active.onload = null;
+        active.onerror = null;
+        logPlaybackStart(itemSnapshot, token);
+      };
+      active.onerror = () => {
+        active.onload = null;
+        active.onerror = null;
+        handlePlaybackError(new Error("ImageError"), token);
+      };
+      active.src = src;
+      active.style.display = "block";
+      active.style.opacity = 1;
+      if (active.complete && active.naturalWidth > 0) {
+        active.onload();
+      }
+    }
+
+    function dissolveToImage(src, token, itemSnapshot) {
+      const current = mediaImages[activeImageIndex];
+      const next = mediaImages[1 - activeImageIndex];
+      let started = false;
+
+      if (dissolveTimer) {
+        clearTimeout(dissolveTimer);
+        dissolveTimer = null;
+      }
+
+      function startFade() {
+        if (started) return;
+        started = true;
+        logPlaybackStart(itemSnapshot, token);
+        next.style.display = "block";
+        next.style.opacity = 0;
+        next.style.transitionDuration = `${dissolveDurationMs}ms`;
+        current.style.transitionDuration = `${dissolveDurationMs}ms`;
+
+        next.offsetWidth;
+        next.style.opacity = 1;
+        current.style.opacity = 0;
+
+        dissolveTimer = setTimeout(() => {
+          current.style.display = "none";
+          current.style.opacity = 0;
+          activeImageIndex = 1 - activeImageIndex;
+          dissolveTimer = null;
+        }, dissolveDurationMs);
+      }
+
+      next.onload = () => {
+        next.onload = null;
+        next.onerror = null;
+        startFade();
+      };
+      next.onerror = () => {
+        next.onload = null;
+        next.onerror = null;
+        handlePlaybackError(new Error("ImageError"), token);
+      };
+      next.src = src;
+
+      if (next.complete && next.naturalWidth > 0) {
+        startFade();
+      }
+    }
+
+    function showImage(src, useDissolve, token, itemSnapshot) {
+      hideVideo();
+      mediaPlaceholder.style.display = "none";
+
+      const canDissolve = useDissolve && mediaImages[activeImageIndex].style.display === "block";
+      if (canDissolve) {
+        dissolveToImage(src, token, itemSnapshot);
+      } else {
+        showImageImmediate(src, token, itemSnapshot);
+      }
+      currentType = "image";
+    }
+
+    function showVideoItem(src, token, itemSnapshot, offsetMs = 0) {
+      hideImages();
+      mediaPlaceholder.style.display = "none";
+      mediaVideo.style.display = "block";
+      mediaVideo.onloadedmetadata = () => {
+        if (!Number.isFinite(offsetMs) || offsetMs <= 0) return;
+        const seekSeconds = Math.max(0, offsetMs / 1000);
+        try {
+          if (Number.isFinite(mediaVideo.duration) && mediaVideo.duration > 0) {
+            mediaVideo.currentTime = Math.min(seekSeconds, Math.max(0, mediaVideo.duration - 0.25));
+          } else {
+            mediaVideo.currentTime = seekSeconds;
+          }
+        } catch (error) {
+          mediaVideo.currentTime = 0;
+        }
+      };
+      mediaVideo.src = src;
+      mediaVideo.currentTime = 0;
+      currentType = "video";
+      mediaVideo.onplaying = () => {
+        if (currentType === "video") {
+          logPlaybackStart(itemSnapshot, token);
+        }
+      };
+      mediaVideo.play().catch((error) => {
+        handlePlaybackError(error, token);
+      });
+    }
+
+    function playItem(item, options = {}) {
+      clearPlaybackTimers();
+      currentItem = item;
+      activePlayToken += 1;
+      loggedPlayToken = null;
+      const duration = sanitizeDuration(item.durationSeconds || manifestDefaultDuration);
+      const dissolveDelay = options.dissolve ? dissolveDurationMs : 0;
+      const offsetMs = Math.max(0, Number(options.offsetMs) || 0);
+      const totalMs = duration * 1000 + dissolveDelay;
+      const remainingMs = Math.max(0, totalMs - offsetMs);
+      const startedAt = options.startedAt || (Date.now() - offsetMs);
+      saveResumeState(playbackIndex, startedAt, item.src);
+      const playSrc = resolveAssetUrl(item.src);
+
+      if (item.type === "video") {
+        showVideoItem(playSrc, activePlayToken, item, offsetMs);
+      } else {
+        showImage(playSrc, options.dissolve, activePlayToken, item);
+      }
+
+      playbackTimer = setTimeout(() => {
+        advancePlayback();
+      }, remainingMs);
+    }
+
+    function logPlaybackStart(item, token) {
+      if (!item) return;
+      if (token !== activePlayToken) return;
+      if (loggedPlayToken === token) return;
+      loggedPlayToken = token;
+      addPlaybackLogEntry("start", item, "");
+    }
+
+    function handlePlaybackError(error, token) {
+      if (token !== activePlayToken) return;
+      if (!currentItem) return;
+      const message = error && error.name ? error.name : "PlaybackError";
+      addPlaybackLogEntry("error", currentItem, message);
+      clearPlaybackTimers();
+      advancePlayback();
+    }
+
+    function advancePlayback() {
+      const list = getActivePlaylist();
+      if (!list.length) {
+        showPlaceholder("No media configured");
+        return;
+      }
+      const nextIndex = (playbackIndex + 1) % list.length;
+      const nextItem = list[nextIndex];
+      const useDissolve = dissolveEnabled && currentType === "image" && nextItem.type === "image";
+      playbackIndex = nextIndex;
+      playItem(nextItem, { dissolve: useDissolve });
+    }
+
+    function startPlayback() {
+      clearPlaybackTimers();
+      const list = getActivePlaylist();
+      playbackIndex = 0;
+      if (!list.length) {
+        showPlaceholder("No media configured");
+        return;
+      }
+      playItem(list[playbackIndex]);
+    }
+
+    function getItemDurationMs(item, nextItem) {
+      const baseMs = sanitizeDuration(item.durationSeconds || manifestDefaultDuration) * 1000;
+      const dissolveDelay = dissolveEnabled && item.type === "image" && nextItem && nextItem.type === "image"
+        ? dissolveDurationMs
+        : 0;
+      return baseMs + dissolveDelay;
+    }
+
+    function saveResumeState(index, startedAt, src) {
+      const payload = {
+        playlist: activePlaylistName,
+        index,
+        startedAt,
+        src
+      };
+      localStorage.setItem(RESUME_STATE_KEY, JSON.stringify(payload));
+    }
+
+    function loadResumeState() {
+      const raw = localStorage.getItem(RESUME_STATE_KEY);
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        return parsed;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function resolveResumePlayback(list) {
+      const state = loadResumeState();
+      if (!state || state.playlist !== activePlaylistName) return null;
+      if (!Number.isFinite(state.index) || !Number.isFinite(state.startedAt)) return null;
+      if (!list.length) return null;
+      const safeIndex = Math.max(0, Math.min(list.length - 1, state.index));
+      if (state.src && list[safeIndex] && list[safeIndex].src !== state.src) {
+        return null;
+      }
+      let elapsedMs = Date.now() - state.startedAt;
+      if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return null;
+      let index = safeIndex;
+      while (elapsedMs > 0 && list.length) {
+        const nextIndex = (index + 1) % list.length;
+        const itemDuration = getItemDurationMs(list[index], list[nextIndex]);
+        if (elapsedMs < itemDuration) {
+          break;
+        }
+        elapsedMs -= itemDuration;
+        index = nextIndex;
+      }
+      return { index, offsetMs: elapsedMs };
+    }
+
+    function startPlaybackAt(index, offsetMs = 0) {
+      clearPlaybackTimers();
+      const list = getActivePlaylist();
+      if (!list.length) {
+        showPlaceholder("No media configured");
+        return;
+      }
+      const safeIndex = Math.max(0, Math.min(list.length - 1, index));
+      playbackIndex = safeIndex;
+      const item = list[playbackIndex];
+      const nextItem = list[(playbackIndex + 1) % list.length];
+      const useDissolve = dissolveEnabled && item.type === "image" && nextItem && nextItem.type === "image";
+      playItem(item, { dissolve: useDissolve, offsetMs });
+    }
+
+    function applyDissolveSettings() {
+      dissolveEnabled = dissolveToggle.checked;
+      const seconds = sanitizeDissolveDuration(dissolveDurationInput.value);
+      dissolveDurationInput.value = seconds;
+      dissolveDurationMs = seconds * 1000;
+      mediaFrame.style.setProperty("--dissolve-duration", `${seconds}s`);
+      localStorage.setItem(DISSOLVE_ENABLED_KEY, dissolveEnabled);
+      localStorage.setItem(DISSOLVE_DURATION_KEY, String(seconds));
+      if (syncClient && !playlistPinned) {
+        syncClient.commit();
+      }
+    }
+
+    function loadDissolveSettings() {
+      const storedEnabled = localStorage.getItem(DISSOLVE_ENABLED_KEY);
+      dissolveToggle.checked = storedEnabled === "true";
+      const storedDuration = localStorage.getItem(DISSOLVE_DURATION_KEY);
+      const safeDuration = sanitizeDissolveDuration(storedDuration || DISSOLVE_DEFAULT_SECONDS);
+      dissolveDurationInput.value = safeDuration;
+      dissolveEnabled = dissolveToggle.checked;
+      dissolveDurationMs = safeDuration * 1000;
+      mediaFrame.style.setProperty("--dissolve-duration", `${safeDuration}s`);
+    }
+
+    function exportSyncState() {
+      if (playlistPinned) return null;
+      return {
+        playlists,
+        activePlaylistName,
+        dissolveEnabled: dissolveToggle.checked,
+        dissolveDuration: sanitizeDissolveDuration(dissolveDurationInput.value)
+      };
+    }
+
+    function applySyncState(state) {
+      if (!state || typeof state !== "object") return;
+      if (playlistPinned) return;
+      if (state.playlists && typeof state.playlists === "object") {
+        playlists = state.playlists;
+      }
+      if (typeof state.activePlaylistName === "string") {
+        activePlaylistName = state.activePlaylistName;
+      }
+      if (!playlists[activePlaylistName]) {
+        const keys = Object.keys(playlists);
+        if (keys.length) {
+          activePlaylistName = keys[0];
+        }
+      }
+      savePlaylists();
+      populatePlaylistSelect();
+      renderPlaylistItems();
+      startPlayback();
+
+      if (state.dissolveEnabled !== undefined) {
+        dissolveToggle.checked = Boolean(state.dissolveEnabled);
+      }
+      if (state.dissolveDuration !== undefined) {
+        dissolveDurationInput.value = sanitizeDissolveDuration(state.dissolveDuration);
+      }
+      applyDissolveSettings();
+      warmPrimaryMediaCache();
+    }
+
+    mediaVideo.addEventListener("ended", () => {
+      if (currentType !== "video") return;
+      clearPlaybackTimers();
+      advancePlayback();
+    });
+
+    mediaVideo.addEventListener("error", () => {
+      if (currentType !== "video") return;
+      handlePlaybackError(new Error("VideoError"), activePlayToken);
+    });
+
+    playlistSelect.addEventListener("change", () => {
+      activePlaylistName = playlistSelect.value;
+      savePlaylists();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    newPlaylistButton.addEventListener("click", () => {
+      const name = prompt("New playlist name:");
+      if (!name) return;
+      const trimmed = name.trim();
+      if (!trimmed || playlists[trimmed]) return;
+      playlists[trimmed] = [];
+      activePlaylistName = trimmed;
+      savePlaylists();
+      populatePlaylistSelect();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    deletePlaylistButton.addEventListener("click", () => {
+      const keys = Object.keys(playlists);
+      if (!keys.length) return;
+      if (!confirm("Delete this playlist?")) return;
+
+      if (keys.length === 1) {
+        playlists[activePlaylistName] = [];
+      } else {
+        delete playlists[activePlaylistName];
+        activePlaylistName = Object.keys(playlists)[0];
+      }
+
+      savePlaylists();
+      populatePlaylistSelect();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    addItemButton.addEventListener("click", () => {
+      if (!manifestItems.length) return;
+      const selected = Number(assetSelect.value);
+      const asset = manifestItems[selected];
+      if (!asset) return;
+      const list = getActivePlaylist();
+      list.push({
+        src: asset.src,
+        type: asset.type,
+        durationSeconds: sanitizeDuration(durationInput.value)
+      });
+      playlists[activePlaylistName] = list;
+      savePlaylists();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    playlistItems.addEventListener("click", event => {
+      const target = event.target;
+      if (!target.dataset.action) return;
+      const index = Number(target.dataset.index);
+      const list = getActivePlaylist();
+      if (!Number.isFinite(index) || index < 0 || index >= list.length) return;
+
+      if (target.dataset.action === "remove") {
+        list.splice(index, 1);
+      } else if (target.dataset.action === "up" && index > 0) {
+        const temp = list[index - 1];
+        list[index - 1] = list[index];
+        list[index] = temp;
+      } else if (target.dataset.action === "down" && index < list.length - 1) {
+        const temp = list[index + 1];
+        list[index + 1] = list[index];
+        list[index] = temp;
+      }
+
+      playlists[activePlaylistName] = list;
+      savePlaylists();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    playlistItems.addEventListener("change", event => {
+      const target = event.target;
+      if (!target.classList.contains("item-duration")) return;
+      const index = Number(target.dataset.index);
+      const list = getActivePlaylist();
+      if (!Number.isFinite(index) || !list[index]) return;
+      list[index].durationSeconds = sanitizeDuration(target.value);
+      playlists[activePlaylistName] = list;
+      savePlaylists();
+      renderPlaylistItems();
+      startPlayback();
+    });
+
+    dissolveToggle.addEventListener("change", () => {
+      applyDissolveSettings();
+    });
+
+    dissolveDurationInput.addEventListener("input", () => {
+      applyDissolveSettings();
+    });
+
+    if (playlistPinToggle) {
+      playlistPinToggle.addEventListener("change", () => {
+        setPlaylistPinned(playlistPinToggle.checked);
+      });
+    }
+
+    downloadLogButton.addEventListener("click", () => {
+      downloadLog();
+    });
+
+    clearLogButton.addEventListener("click", () => {
+      playbackLog = [];
+      savePlaybackLog();
+      updateLogStatus();
+    });
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
+      if (data.target === "primary") {
+        setSettingsVisible(data.type === "beacon-request-open");
+      } else if (data.target === "trivia") {
+        if (data.type === "beacon-request-open") {
+          requestTriviaOpen();
+        } else {
+          requestTriviaClose();
+        }
+      }
+    });
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "beacon-trivia-settings") return;
+      setTriviaLayout(Boolean(data.open));
+      notifyParent("trivia", Boolean(data.open));
+    });
+
+    function isShortcut(event, digit) {
+      if (!event.ctrlKey || !event.shiftKey) return false;
+      if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
+      return event.key === String(digit);
+    }
+
+    function requestTopModalOpen(target) {
+      try {
+        if (window.top && window.top !== window) {
+          try {
+            if (typeof window.top.beaconNextRequestOpen === "function") {
+              window.top.beaconNextRequestOpen(target);
+              return true;
+            }
+          } catch {}
+          window.top.postMessage({ type: "beacon-request-open", target }, "*");
+          return true;
+        }
+      } catch {}
+      return false;
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (isShortcut(event, 1)) {
+        event.preventDefault();
+        window.top.postMessage({ type: "beacon-request-open", target: "primary" }, "*");
+      } else if (isShortcut(event, 2) || isShortcut(event, 3)) {
+        event.preventDefault();
+        requestTopModalOpen("secondary");
+      } else if (
+        (event.ctrlKey && event.shiftKey && event.code === "KeyF")
+        || isShortcut(event, 4)
+      ) {
+        event.preventDefault();
+        requestTopModalOpen("footer");
+      }
+    });
+
+    document.querySelector("#settingsModal .close-button").addEventListener("click", () => {
+      setSettingsVisible(false);
+    });
+
+    (async function init() {
+      await loadManifest();
+      await loadAssetVersion();
+      warmPrimaryMediaCache();
+      durationInput.value = String(manifestDefaultDuration);
+      loadStoredPlaylists();
+      loadPlaylistPinSetting();
+      populatePlaylistSelect();
+      populateAssetSelect();
+      renderPlaylistItems();
+      loadDissolveSettings();
+      loadPlaybackLog();
+      const resume = resolveResumePlayback(getActivePlaylist());
+      if (resume) {
+        startPlaybackAt(resume.index, resume.offsetMs);
+      } else {
+        startPlayback();
+      }
+
+      if (window.beaconSync) {
+        syncClient = window.beaconSync.createClient({
+          scope: window.beaconIdentity?.buildSyncScope?.("primary") || "primary",
+          getState: exportSyncState,
+          applyState: applySyncState
+        });
+        syncClient.start();
+      }
+    })();
+  </script>
+</body>
+</html>

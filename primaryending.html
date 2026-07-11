@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trivia Panel</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #101419;
+      color: #f2f4f7;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      padding: 4vh 3vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(180deg, #171b22 0%, #0f1114 100%);
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2vh;
+      text-align: center;
+    }
+
+    .logo {
+      width: 75%;
+      height: auto;
+      max-height: 18vh;
+      object-fit: contain;
+      --logo-scale: 1;
+      --logo-shift-x: 0px;
+      --logo-shift-y: 0px;
+      transform: translate(var(--logo-shift-x), var(--logo-shift-y)) scale(var(--logo-scale));
+      transition: transform 2s ease-in-out;
+    }
+
+    .body {
+      display: flex;
+      flex-direction: column;
+      gap: 2vh;
+    }
+
+    .question {
+      margin: 0;
+      font-size: clamp(2.4rem, 3.4vw, 4.4rem);
+      line-height: 1.15;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .response {
+      display: flex;
+      flex-direction: column;
+      gap: 1.4vh;
+      min-height: 18vh;
+    }
+
+    .clues {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2vh;
+      font-size: clamp(1.8rem, 2.55vw, 3.3rem);
+      line-height: 1.15;
+      font-weight: 700;
+      color: #b7d6f2;
+    }
+
+    .clue {
+      padding-bottom: 0.6vh;
+      border-bottom: 1px solid #000000;
+    }
+
+    .answer {
+      display: none;
+      font-size: clamp(3.6rem, 5.1vw, 6.6rem);
+      line-height: 1.2;
+      font-weight: 700;
+      color: #f5d36b;
+    }
+
+    #settingsModal {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: none;
+      z-index: 9999;
+    }
+
+    #settingsModal.is-open {
+      display: block;
+    }
+
+    #settingsModal .modal-panel {
+      width: 320px;
+      padding: 14px;
+      background: rgba(18, 22, 28, 0.96);
+      color: #f2f4f7;
+      border-radius: 8px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    }
+
+    body.settings-open #settingsModal.is-open {
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9, 11, 14, 0.7);
+      padding: 4vh 4vw;
+    }
+
+    body.settings-open #settingsModal .modal-panel {
+      width: min(90vw, 720px);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    #settingsModal .modal-panel .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    #settingsModal .modal-panel h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    #settingsModal .modal-panel .close-button {
+      border: none;
+      background: transparent;
+      color: #c2c9d1;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    #settingsModal .modal-panel .close-button:hover {
+      color: #ffffff;
+    }
+
+    #settingsModal .modal-panel label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    #settingsModal .modal-panel input,
+    #settingsModal .modal-panel select {
+      width: 100%;
+    }
+
+    #settingsModal .modal-panel input[type="text"] {
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #2b3340;
+      background: #0f1318;
+      color: #f2f4f7;
+    }
+
+    #settingsModal .modal-panel .setting-value {
+      font-size: 12px;
+      color: #aab3bd;
+      text-align: right;
+      margin-top: -6px;
+      margin-bottom: 8px;
+    }
+
+    #settingsModal .modal-panel .inline-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    #settingsModal .modal-panel .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #aab3bd;
+      margin: 12px 0 6px;
+    }
+
+    #settingsModal .sync-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #aab3bd;
+      margin-top: 6px;
+    }
+
+    #settingsModal .sync-led {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #5b6774;
+      box-shadow: 0 0 0 2px rgba(15, 20, 26, 0.7);
+    }
+
+    #settingsModal .sync-led.is-ok {
+      background: #2fbe5b;
+      box-shadow: 0 0 10px rgba(47, 190, 91, 0.8);
+    }
+
+    #settingsModal .modal-panel .hidden {
+      display: none;
+    }
+
+    #settingsModal .modal-panel .action-button {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid #2b3340;
+      background: #141a21;
+      color: #f2f4f7;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #settingsModal .modal-panel .action-button:hover {
+      background: #1b222b;
+    }
+  </style>
+</head>
+<body>
+  <section class="panel" aria-live="polite">
+    <div class="header">
+      <img class="logo" src="assets/triviatimebeaconlogo.png" alt="Trivia Time Beacon logo">
+    </div>
+    <div class="body">
+      <div class="question" id="question">Loading</div>
+      <div class="response">
+        <div class="clues" id="clues"></div>
+        <div class="answer" id="answer"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="settingsModal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Trivia Display Settings</h3>
+        <button class="close-button" type="button" aria-label="Close">x</button>
+      </div>
+
+      <div class="section-title">Logo</div>
+      <label>Logo Image Path
+        <input id="logoImage" type="text" value="assets/triviatimebeaconlogo.png">
+      </label>
+      <label>Logo Size
+        <input id="logoScale" type="range" min="0.6" max="4" step="0.05" value="1.2">
+      </label>
+      <div class="setting-value" id="logoScaleValue"></div>
+
+      <div class="section-title">Burn-In Protection</div>
+      <label class="inline-label">
+        <input id="logoShiftEnabled" type="checkbox" checked>
+        Enable pixel shift
+      </label>
+      <label>Shift Strength (px)
+        <input id="logoShiftStrength" type="range" min="1" max="8" step="1" value="5">
+      </label>
+
+      <div class="section-title">Background</div>
+      <label>Mode
+        <select id="bgMode">
+          <option value="solid">Solid</option>
+          <option value="gradient">Gradient</option>
+          <option value="image">Image (Repeat)</option>
+        </select>
+      </label>
+
+      <div class="bg-group" data-mode="solid">
+        <label>Preset Color
+          <select id="bgPreset">
+            <option value="#101419">Charcoal</option>
+            <option value="#0d1b2a">Navy</option>
+            <option value="#1c1f26">Slate</option>
+            <option value="#14213d">Midnight</option>
+            <option value="#1b2a2f">Steel</option>
+          </select>
+        </label>
+        <label>Custom Color
+          <input id="bgColor" type="color" value="#000000">
+        </label>
+      </div>
+
+      <div class="bg-group" data-mode="gradient">
+        <label>Preset Gradient
+          <select id="gradPreset">
+            <option value="#171b22|#0f1114|180">Dark Steel</option>
+            <option value="#0e2a47|#0a1018|180">Deep Blue</option>
+            <option value="#2c2f36|#15171c|180">Graphite</option>
+            <option value="#1b2a2f|#0f151b|180">Cool Slate</option>
+          </select>
+        </label>
+        <label>Start Color
+          <input id="gradStart" type="color" value="#171b22">
+        </label>
+        <label>End Color
+          <input id="gradEnd" type="color" value="#0f1114">
+        </label>
+        <label>Angle
+          <input id="gradAngle" type="range" min="0" max="360" step="5" value="180">
+        </label>
+        <div class="setting-value" id="gradAngleValue"></div>
+      </div>
+
+      <div class="bg-group" data-mode="image">
+        <label>Image Path
+          <input id="bgImage" type="text" placeholder="assets/background.png">
+        </label>
+        <label>Repeat
+          <select id="bgRepeat">
+            <option value="repeat">Repeat</option>
+            <option value="repeat-x">Repeat X</option>
+            <option value="repeat-y">Repeat Y</option>
+            <option value="no-repeat">No Repeat</option>
+          </select>
+        </label>
+        <label>Size
+          <select id="bgSize">
+            <option value="auto">Auto</option>
+            <option value="cover">Cover</option>
+            <option value="contain">Contain</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="section-title">Text</div>
+      <label>Question Size
+        <input id="questionScale" type="range" min="0.6" max="1.6" step="0.05" value="1.25">
+      </label>
+      <div class="setting-value" id="questionScaleValue"></div>
+      <label>Question Color
+        <input id="questionColor" type="color" value="#d8fb2d">
+      </label>
+
+      <label>Clue Size
+        <input id="clueScale" type="range" min="0.6" max="1.6" step="0.05" value="1.2">
+      </label>
+      <div class="setting-value" id="clueScaleValue"></div>
+      <label>Clue Color
+        <input id="clueColor" type="color" value="#46e6fb">
+      </label>
+
+      <label>Answer Size
+        <input id="answerScale" type="range" min="0.6" max="1.6" step="0.05" value="1.6">
+      </label>
+      <div class="setting-value" id="answerScaleValue"></div>
+      <label>Answer Color
+        <input id="answerColor" type="color" value="#32ff24">
+      </label>
+
+      <div class="section-title">Sync</div>
+      <label class="inline-label">
+        <input id="syncToggle" type="checkbox" checked>
+        Sync changes across browsers
+      </label>
+      <div class="sync-indicator">
+        <span class="sync-led" id="syncLed" aria-hidden="true"></span>
+        <span id="syncLabel">Sync status: not configured</span>
+      </div>
+
+      <div class="section-title">Defaults</div>
+      <button id="resetDefaults" class="action-button" type="button">Reset to defaults</button>
+    </div>
+  </div>
+
+  <script src="assets/bdn-identity.js"></script>
+  <script src="assets/bdn-content-paths.js"></script>
+  <script src="assets/bdn-runtime-config.js"></script>
+  <script src="assets/sync.js"></script>
+  <script src="assets/tiny-pixel-clock-v2.js"></script>
+  <script src="assets/kiosk-color-picker.js"></script>
+  <script>
+    window.beaconIdentity?.applyIdentityDataset(document.documentElement);
+
+    const fallbackData = {
+      items: [
+        {
+          question: "Which U.S. state is known as the Sunshine State?",
+          clues: ["This state is in the Southeast.", "It is known for beaches.", "Its nickname is the Sunshine State."],
+          answer: "Florida"
+        },
+        {
+          question: "What is the capital of Alaska?",
+          clues: ["It is not Anchorage.", "It is in the Southeast region.", "It is named after a gold rush."],
+          answer: "Juneau"
+        },
+        {
+          question: "Which planet is known as the Red Planet?",
+          clues: ["It is the fourth planet from the Sun.", "It has two small moons.", "Its surface is rich in iron oxide."],
+          answer: "Mars"
+        }
+      ]
+    };
+
+    const dataUrl = "data/primaryending.json";
+    const questionEl = document.getElementById("question");
+    const cluesEl = document.getElementById("clues");
+    const answerEl = document.getElementById("answer");
+    const panelEl = document.querySelector(".panel");
+    const logoEl = document.querySelector(".logo");
+    const settingsModal = document.getElementById("settingsModal");
+
+    const logoImageInput = document.getElementById("logoImage");
+    const logoScaleInput = document.getElementById("logoScale");
+    const logoScaleValue = document.getElementById("logoScaleValue");
+    const logoShiftEnabledInput = document.getElementById("logoShiftEnabled");
+    const logoShiftStrengthInput = document.getElementById("logoShiftStrength");
+    const questionScaleInput = document.getElementById("questionScale");
+    const questionScaleValue = document.getElementById("questionScaleValue");
+    const questionColorInput = document.getElementById("questionColor");
+    const clueScaleInput = document.getElementById("clueScale");
+    const clueScaleValue = document.getElementById("clueScaleValue");
+    const clueColorInput = document.getElementById("clueColor");
+    const answerScaleInput = document.getElementById("answerScale");
+    const answerScaleValue = document.getElementById("answerScaleValue");
+    const answerColorInput = document.getElementById("answerColor");
+    const bgMode = document.getElementById("bgMode");
+    const bgPreset = document.getElementById("bgPreset");
+    const bgColor = document.getElementById("bgColor");
+    const gradPreset = document.getElementById("gradPreset");
+    const gradStart = document.getElementById("gradStart");
+    const gradEnd = document.getElementById("gradEnd");
+    const gradAngle = document.getElementById("gradAngle");
+    const gradAngleValue = document.getElementById("gradAngleValue");
+    const bgImage = document.getElementById("bgImage");
+    const bgRepeat = document.getElementById("bgRepeat");
+    const bgSize = document.getElementById("bgSize");
+    const bgGroups = Array.from(document.querySelectorAll(".bg-group"));
+    const syncToggle = document.getElementById("syncToggle");
+    const syncLed = document.getElementById("syncLed");
+    const syncLabel = document.getElementById("syncLabel");
+    const resetDefaultsButton = document.getElementById("resetDefaults");
+    let syncClient = null;
+    let syncEnabled = true;
+    let lastSyncStatus = { configured: false, connected: false, ready: false };
+    const defaultLogoPath = "assets/triviatimebeaconlogo.png";
+    const SHIFT_INTERVAL_MS = 60000;
+    const PRIMARY_ENDING_CLOCK_STORAGE_KEY = "primaryending_tiny_clock_v2";
+    const SHIFT_OFFSETS = [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 0, y: -1 }
+    ];
+    let logoShiftTimer = null;
+    let logoShiftIndex = 0;
+    let logoShiftEnabled = true;
+    let primaryEndingClock = null;
+
+    function hasPrimaryEndingClockState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(PRIMARY_ENDING_CLOCK_STORAGE_KEY) || "null");
+        return Boolean(parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y));
+      } catch {
+        return false;
+      }
+    }
+
+    function ensurePrimaryEndingClock() {
+      if (primaryEndingClock || typeof TinyPixelClockV2 !== "function") return;
+
+      const hasSavedPosition = hasPrimaryEndingClockState();
+      primaryEndingClock = new TinyPixelClockV2({
+        x: Math.max(8, window.innerWidth - 120),
+        y: 10,
+        color: "#191919",
+        scale: 0.99,
+        storageKey: PRIMARY_ENDING_CLOCK_STORAGE_KEY
+      });
+
+      if (!hasSavedPosition) {
+        requestAnimationFrame(() => {
+          const bounds = primaryEndingClock.root.getBoundingClientRect();
+          primaryEndingClock.setPosition(Math.max(0, window.innerWidth - bounds.width - 5), 10);
+        });
+      }
+    }
+
+    function notifyParent(open) {
+      if (!window.parent) return;
+      window.parent.postMessage({ type: "beacon-trivia-settings", open }, "*");
+    }
+
+    function setSettingsVisible(visible) {
+      settingsModal.classList.toggle("is-open", visible);
+      document.body.classList.toggle("settings-open", visible);
+      notifyParent(visible);
+    }
+
+    function updateSyncIndicator(status) {
+      if (!syncLed || !syncLabel) return;
+      if (status) {
+        lastSyncStatus = status;
+      }
+      if (!syncEnabled) {
+        syncLed.classList.remove("is-ok");
+        syncLabel.textContent = "Sync status: disabled";
+        return;
+      }
+      if (lastSyncStatus && lastSyncStatus.connected) {
+        syncLed.classList.add("is-ok");
+        syncLabel.textContent = "Sync status: online";
+        return;
+      }
+      syncLed.classList.remove("is-ok");
+      if (lastSyncStatus && lastSyncStatus.configured) {
+        syncLabel.textContent = "Sync status: offline";
+        return;
+      }
+      syncLabel.textContent = "Sync status: not configured";
+    }
+
+    const STORAGE_KEYS = {
+      logoImage: "trivia_logo_image",
+      logoShiftEnabled: "trivia_logo_shift_enabled",
+      logoShiftStrength: "trivia_logo_shift_strength",
+      logoScale: "trivia_logo_scale",
+      bgMode: "trivia_bg_mode",
+      bgColor: "trivia_bg_color",
+      gradStart: "trivia_grad_start",
+      gradEnd: "trivia_grad_end",
+      gradAngle: "trivia_grad_angle",
+      bgImage: "trivia_bg_image",
+      bgRepeat: "trivia_bg_repeat",
+      bgSize: "trivia_bg_size",
+      questionScale: "trivia_question_scale",
+      questionColor: "trivia_question_color",
+      clueScale: "trivia_clue_scale",
+      clueColor: "trivia_clue_color",
+      answerScale: "trivia_answer_scale",
+      answerColor: "trivia_answer_color"
+    };
+
+    const SYNC_ENABLED_KEY = "trivia_sync_enabled";
+
+    const DEFAULTS = {
+      logoImage: defaultLogoPath,
+      logoShiftEnabled: "true",
+      logoShiftStrength: "5",
+      logoScale: "1.2",
+      bgMode: "solid",
+      bgColor: "#000000",
+      gradStart: "#171b22",
+      gradEnd: "#0f1114",
+      gradAngle: "180",
+      bgImage: "",
+      bgRepeat: "repeat",
+      bgSize: "auto",
+      questionScale: "1.25",
+      questionColor: "#d8fb2d",
+      clueScale: "1.2",
+      clueColor: "#46e6fb",
+      answerScale: "1.6",
+      answerColor: "#32ff24"
+    };
+
+    function loadSetting(key) {
+      const saved = localStorage.getItem(key);
+      return saved === null ? DEFAULTS[key] : saved;
+    }
+
+    function saveSetting(key, value) {
+      localStorage.setItem(key, value);
+      if (syncClient && syncEnabled) {
+        syncClient.commit();
+      }
+    }
+
+    function setBgGroupVisibility(mode) {
+      bgGroups.forEach(group => {
+        group.classList.toggle("hidden", group.dataset.mode !== mode);
+      });
+    }
+
+    function applyLogoScale(value) {
+      const scale = Number(value) || 1;
+      logoEl.style.setProperty("--logo-scale", scale);
+      logoScaleValue.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function applyLogoImage() {
+      const path = (logoImageInput.value || "").trim();
+      logoEl.src = path || defaultLogoPath;
+    }
+
+    function sanitizeShiftStrength(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 5;
+      return Math.max(1, Math.min(8, Math.round(numeric)));
+    }
+
+    function applyLogoShift() {
+      const strength = sanitizeShiftStrength(logoShiftStrengthInput.value);
+      const offset = SHIFT_OFFSETS[logoShiftIndex];
+      logoEl.style.setProperty("--logo-shift-x", `${offset.x * strength}px`);
+      logoEl.style.setProperty("--logo-shift-y", `${offset.y * strength}px`);
+    }
+
+    function stopLogoShift() {
+      if (logoShiftTimer) {
+        clearInterval(logoShiftTimer);
+        logoShiftTimer = null;
+      }
+      logoEl.style.setProperty("--logo-shift-x", "0px");
+      logoEl.style.setProperty("--logo-shift-y", "0px");
+    }
+
+    function startLogoShift() {
+      stopLogoShift();
+      if (!logoShiftEnabled) return;
+      logoShiftIndex = 0;
+      applyLogoShift();
+      logoShiftTimer = setInterval(() => {
+        logoShiftIndex = (logoShiftIndex + 1) % SHIFT_OFFSETS.length;
+        applyLogoShift();
+      }, SHIFT_INTERVAL_MS);
+    }
+
+    function applyLogoShiftSettings() {
+      logoShiftEnabled = logoShiftEnabledInput.checked;
+      const strength = sanitizeShiftStrength(logoShiftStrengthInput.value);
+      logoShiftStrengthInput.value = strength;
+      saveSetting(STORAGE_KEYS.logoShiftEnabled, String(logoShiftEnabled));
+      saveSetting(STORAGE_KEYS.logoShiftStrength, String(strength));
+      startLogoShift();
+    }
+
+    function buildClamp(minRem, midVw, maxRem, scale) {
+      const safeScale = Number.isFinite(scale) ? scale : 1;
+      const min = (minRem * safeScale).toFixed(3);
+      const mid = (midVw * safeScale).toFixed(3);
+      const max = (maxRem * safeScale).toFixed(3);
+      return `clamp(${min}rem, ${mid}vw, ${max}rem)`;
+    }
+
+    function applyTextStyles() {
+      const questionScale = Number(questionScaleInput.value) || 1;
+      const clueScale = Number(clueScaleInput.value) || 1;
+      const answerScale = Number(answerScaleInput.value) || 1;
+
+      questionEl.style.fontSize = buildClamp(2.4, 3.4, 4.4, questionScale);
+      cluesEl.style.fontSize = buildClamp(1.8, 2.55, 3.3, clueScale);
+      answerEl.style.fontSize = buildClamp(3.6, 5.1, 6.6, answerScale);
+
+      questionEl.style.color = questionColorInput.value;
+      cluesEl.style.color = clueColorInput.value;
+      answerEl.style.color = answerColorInput.value;
+
+      questionScaleValue.textContent = `${Math.round(questionScale * 100)}%`;
+      clueScaleValue.textContent = `${Math.round(clueScale * 100)}%`;
+      answerScaleValue.textContent = `${Math.round(answerScale * 100)}%`;
+    }
+
+    function resetToDefaults() {
+      logoImageInput.value = DEFAULTS.logoImage;
+      logoShiftEnabledInput.checked = DEFAULTS.logoShiftEnabled === "true";
+      logoShiftStrengthInput.value = DEFAULTS.logoShiftStrength;
+      logoScaleInput.value = DEFAULTS.logoScale;
+      bgMode.value = DEFAULTS.bgMode;
+      bgColor.value = DEFAULTS.bgColor;
+      gradStart.value = DEFAULTS.gradStart;
+      gradEnd.value = DEFAULTS.gradEnd;
+      gradAngle.value = DEFAULTS.gradAngle;
+      bgImage.value = DEFAULTS.bgImage;
+      bgRepeat.value = DEFAULTS.bgRepeat;
+      bgSize.value = DEFAULTS.bgSize;
+      questionScaleInput.value = DEFAULTS.questionScale;
+      questionColorInput.value = DEFAULTS.questionColor;
+      clueScaleInput.value = DEFAULTS.clueScale;
+      clueColorInput.value = DEFAULTS.clueColor;
+      answerScaleInput.value = DEFAULTS.answerScale;
+      answerColorInput.value = DEFAULTS.answerColor;
+      if (bgPreset) {
+        bgPreset.value = DEFAULTS.bgColor;
+      }
+      if (gradPreset) {
+        gradPreset.value = `${DEFAULTS.gradStart}|${DEFAULTS.gradEnd}|${DEFAULTS.gradAngle}`;
+      }
+
+      saveSetting(STORAGE_KEYS.logoImage, logoImageInput.value.trim());
+      saveSetting(STORAGE_KEYS.logoShiftEnabled, String(logoShiftEnabledInput.checked));
+      saveSetting(STORAGE_KEYS.logoShiftStrength, String(logoShiftStrengthInput.value));
+      saveSetting(STORAGE_KEYS.logoScale, logoScaleInput.value);
+      saveSetting(STORAGE_KEYS.bgMode, bgMode.value);
+      saveSetting(STORAGE_KEYS.bgColor, bgColor.value);
+      saveSetting(STORAGE_KEYS.gradStart, gradStart.value);
+      saveSetting(STORAGE_KEYS.gradEnd, gradEnd.value);
+      saveSetting(STORAGE_KEYS.gradAngle, gradAngle.value);
+      saveSetting(STORAGE_KEYS.bgImage, bgImage.value.trim());
+      saveSetting(STORAGE_KEYS.bgRepeat, bgRepeat.value);
+      saveSetting(STORAGE_KEYS.bgSize, bgSize.value);
+      saveSetting(STORAGE_KEYS.questionScale, questionScaleInput.value);
+      saveSetting(STORAGE_KEYS.questionColor, questionColorInput.value);
+      saveSetting(STORAGE_KEYS.clueScale, clueScaleInput.value);
+      saveSetting(STORAGE_KEYS.clueColor, clueColorInput.value);
+      saveSetting(STORAGE_KEYS.answerScale, answerScaleInput.value);
+      saveSetting(STORAGE_KEYS.answerColor, answerColorInput.value);
+
+      applyLogoImage();
+      applyLogoShiftSettings();
+      applyLogoScale(logoScaleInput.value);
+      gradAngleValue.textContent = `${gradAngle.value}deg`;
+      setBgGroupVisibility(bgMode.value);
+      applyBackground();
+      applyTextStyles();
+      if (syncClient && syncEnabled) {
+        syncClient.commitNow();
+      }
+    }
+
+    function applyBackground() {
+      const mode = bgMode.value;
+      if (mode === "solid") {
+        panelEl.style.background = bgColor.value;
+        panelEl.style.backgroundRepeat = "no-repeat";
+        panelEl.style.backgroundSize = "cover";
+      } else if (mode === "gradient") {
+        panelEl.style.background = `linear-gradient(${gradAngle.value}deg, ${gradStart.value}, ${gradEnd.value})`;
+        panelEl.style.backgroundRepeat = "no-repeat";
+        panelEl.style.backgroundSize = "cover";
+      } else if (mode === "image") {
+        const imagePath = bgImage.value.trim();
+        if (imagePath) {
+          panelEl.style.backgroundImage = `url("${imagePath}")`;
+        } else {
+          panelEl.style.backgroundImage = "none";
+        }
+        panelEl.style.backgroundColor = bgColor.value;
+        panelEl.style.backgroundRepeat = bgRepeat.value;
+        panelEl.style.backgroundSize = bgSize.value;
+      }
+    }
+
+    function applyText(el, text, fallback) {
+      const value = (text || fallback || "").trim();
+      el.textContent = value;
+    }
+
+    function exportSyncState() {
+      return {
+        logoImage: logoImageInput.value.trim(),
+        logoShiftEnabled: logoShiftEnabledInput.checked,
+        logoShiftStrength: sanitizeShiftStrength(logoShiftStrengthInput.value),
+        logoScale: logoScaleInput.value,
+        bgMode: bgMode.value,
+        bgColor: bgColor.value,
+        gradStart: gradStart.value,
+        gradEnd: gradEnd.value,
+        gradAngle: gradAngle.value,
+        bgImage: bgImage.value.trim(),
+        bgRepeat: bgRepeat.value,
+        bgSize: bgSize.value,
+        questionScale: questionScaleInput.value,
+        questionColor: questionColorInput.value,
+        clueScale: clueScaleInput.value,
+        clueColor: clueColorInput.value,
+        answerScale: answerScaleInput.value,
+        answerColor: answerColorInput.value
+      };
+    }
+
+    function applySyncState(state) {
+      if (!state || typeof state !== "object") return;
+      if (!syncEnabled) return;
+      if (state.logoImage !== undefined) {
+        logoImageInput.value = state.logoImage;
+        saveSetting(STORAGE_KEYS.logoImage, logoImageInput.value.trim());
+      }
+      if (state.logoShiftEnabled !== undefined) {
+        logoShiftEnabledInput.checked = Boolean(state.logoShiftEnabled);
+        saveSetting(STORAGE_KEYS.logoShiftEnabled, String(logoShiftEnabledInput.checked));
+      }
+      if (state.logoShiftStrength !== undefined) {
+        logoShiftStrengthInput.value = sanitizeShiftStrength(state.logoShiftStrength);
+        saveSetting(STORAGE_KEYS.logoShiftStrength, String(logoShiftStrengthInput.value));
+      }
+      if (state.logoScale !== undefined) {
+        logoScaleInput.value = state.logoScale;
+        saveSetting(STORAGE_KEYS.logoScale, logoScaleInput.value);
+      }
+      if (state.bgMode !== undefined) {
+        bgMode.value = state.bgMode;
+        saveSetting(STORAGE_KEYS.bgMode, bgMode.value);
+      }
+      if (state.bgColor !== undefined) {
+        bgColor.value = state.bgColor;
+        saveSetting(STORAGE_KEYS.bgColor, bgColor.value);
+      }
+      if (state.gradStart !== undefined) {
+        gradStart.value = state.gradStart;
+        saveSetting(STORAGE_KEYS.gradStart, gradStart.value);
+      }
+      if (state.gradEnd !== undefined) {
+        gradEnd.value = state.gradEnd;
+        saveSetting(STORAGE_KEYS.gradEnd, gradEnd.value);
+      }
+      if (state.gradAngle !== undefined) {
+        gradAngle.value = state.gradAngle;
+        saveSetting(STORAGE_KEYS.gradAngle, gradAngle.value);
+      }
+      if (state.bgImage !== undefined) {
+        bgImage.value = state.bgImage;
+        saveSetting(STORAGE_KEYS.bgImage, bgImage.value.trim());
+      }
+      if (state.bgRepeat !== undefined) {
+        bgRepeat.value = state.bgRepeat;
+        saveSetting(STORAGE_KEYS.bgRepeat, bgRepeat.value);
+      }
+      if (state.bgSize !== undefined) {
+        bgSize.value = state.bgSize;
+        saveSetting(STORAGE_KEYS.bgSize, bgSize.value);
+      }
+      if (state.questionScale !== undefined) {
+        questionScaleInput.value = state.questionScale;
+        saveSetting(STORAGE_KEYS.questionScale, questionScaleInput.value);
+      }
+      if (state.questionColor !== undefined) {
+        questionColorInput.value = state.questionColor;
+        saveSetting(STORAGE_KEYS.questionColor, questionColorInput.value);
+      }
+      if (state.clueScale !== undefined) {
+        clueScaleInput.value = state.clueScale;
+        saveSetting(STORAGE_KEYS.clueScale, clueScaleInput.value);
+      }
+      if (state.clueColor !== undefined) {
+        clueColorInput.value = state.clueColor;
+        saveSetting(STORAGE_KEYS.clueColor, clueColorInput.value);
+      }
+      if (state.answerScale !== undefined) {
+        answerScaleInput.value = state.answerScale;
+        saveSetting(STORAGE_KEYS.answerScale, answerScaleInput.value);
+      }
+      if (state.answerColor !== undefined) {
+        answerColorInput.value = state.answerColor;
+        saveSetting(STORAGE_KEYS.answerColor, answerColorInput.value);
+      }
+
+      applyLogoImage();
+      applyLogoShiftSettings();
+      applyLogoScale(logoScaleInput.value);
+      gradAngleValue.textContent = `${gradAngle.value}deg`;
+      setBgGroupVisibility(bgMode.value);
+      applyBackground();
+      applyTextStyles();
+    }
+
+    function normalizeItem(item) {
+      if (!item || typeof item !== "object") return null;
+      const question = (item.question || "").trim();
+      const clues = Array.isArray(item.clues) ? item.clues.map(c => String(c || "").trim()).filter(Boolean) : [];
+      const answer = (item.answer || "").trim();
+      if (!question) return null;
+      return { question, clues, answer };
+    }
+
+    function setClues(visibleClues) {
+      cluesEl.innerHTML = "";
+      visibleClues.forEach((clueText) => {
+        const clue = document.createElement("div");
+        clue.className = "clue";
+        clue.textContent = clueText;
+        cluesEl.appendChild(clue);
+      });
+    }
+
+    function renderState(item, phase, clueCount) {
+      applyText(questionEl, item.question, "");
+
+      if (phase === "question") {
+        cluesEl.style.display = "none";
+        answerEl.style.display = "none";
+        setClues([]);
+        answerEl.textContent = "";
+        return;
+      }
+
+      if (phase === "clues") {
+        const visible = item.clues.slice(0, clueCount);
+        cluesEl.style.display = "flex";
+        answerEl.style.display = "none";
+        setClues(visible);
+        answerEl.textContent = "";
+        return;
+      }
+
+      cluesEl.style.display = "none";
+      setClues([]);
+      answerEl.style.display = "block";
+      answerEl.textContent = item.answer || "";
+    }
+
+    async function loadData() {
+      try {
+        const result = await window.beaconContentPaths.fetchFirstJson(dataUrl, { cache: "no-store" });
+        const json = result.json;
+        if (!json || !Array.isArray(json.items) || json.items.length === 0) {
+          throw new Error("Trivia data missing items");
+        }
+        return {
+          items: json.items
+        };
+      } catch (error) {
+        return fallbackData;
+      }
+    }
+
+    (async function init() {
+      const storedSync = localStorage.getItem(SYNC_ENABLED_KEY);
+      syncEnabled = storedSync === null ? true : storedSync === "true";
+      if (syncToggle) {
+        syncToggle.checked = syncEnabled;
+      }
+      updateSyncIndicator();
+
+      logoImageInput.value = loadSetting(STORAGE_KEYS.logoImage);
+      logoShiftEnabledInput.checked = loadSetting(STORAGE_KEYS.logoShiftEnabled) === "true";
+      logoShiftStrengthInput.value = loadSetting(STORAGE_KEYS.logoShiftStrength);
+      logoScaleInput.value = loadSetting(STORAGE_KEYS.logoScale);
+      bgMode.value = loadSetting(STORAGE_KEYS.bgMode);
+      bgColor.value = loadSetting(STORAGE_KEYS.bgColor);
+      gradStart.value = loadSetting(STORAGE_KEYS.gradStart);
+      gradEnd.value = loadSetting(STORAGE_KEYS.gradEnd);
+      gradAngle.value = loadSetting(STORAGE_KEYS.gradAngle);
+      bgImage.value = loadSetting(STORAGE_KEYS.bgImage);
+      bgRepeat.value = loadSetting(STORAGE_KEYS.bgRepeat);
+      bgSize.value = loadSetting(STORAGE_KEYS.bgSize);
+      questionScaleInput.value = loadSetting(STORAGE_KEYS.questionScale);
+      questionColorInput.value = loadSetting(STORAGE_KEYS.questionColor);
+      clueScaleInput.value = loadSetting(STORAGE_KEYS.clueScale);
+      clueColorInput.value = loadSetting(STORAGE_KEYS.clueColor);
+      answerScaleInput.value = loadSetting(STORAGE_KEYS.answerScale);
+      answerColorInput.value = loadSetting(STORAGE_KEYS.answerColor);
+
+      applyLogoImage();
+      applyLogoShiftSettings();
+      applyLogoScale(logoScaleInput.value);
+      gradAngleValue.textContent = `${gradAngle.value}deg`;
+      setBgGroupVisibility(bgMode.value);
+      applyBackground();
+      applyTextStyles();
+
+      window.addEventListener("message", (event) => {
+        const data = event.data;
+        if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
+        if (data.target === "trivia") {
+          setSettingsVisible(data.type === "beacon-request-open");
+        }
+      });
+
+      function isShortcut(event, digit) {
+        if (!event.ctrlKey || !event.shiftKey) return false;
+        if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
+        return event.key === String(digit);
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (isShortcut(event, 1)) {
+          window.top.postMessage({ type: "beacon-request-open", target: "primary" }, "*");
+        } else if (isShortcut(event, 2)) {
+          window.top.postMessage({ type: "beacon-request-open", target: "trivia" }, "*");
+        } else if (isShortcut(event, 3)) {
+          window.top.postMessage({ type: "beacon-request-open", target: "secondary" }, "*");
+        }
+      });
+
+      document.querySelector("#settingsModal .close-button").addEventListener("click", () => {
+        setSettingsVisible(false);
+      });
+
+      logoImageInput.addEventListener("change", () => {
+        saveSetting(STORAGE_KEYS.logoImage, logoImageInput.value.trim());
+        applyLogoImage();
+      });
+
+      logoShiftEnabledInput.addEventListener("change", () => {
+        applyLogoShiftSettings();
+      });
+
+      logoShiftStrengthInput.addEventListener("input", () => {
+        applyLogoShiftSettings();
+      });
+
+      logoScaleInput.addEventListener("input", () => {
+        applyLogoScale(logoScaleInput.value);
+        saveSetting(STORAGE_KEYS.logoScale, logoScaleInput.value);
+      });
+
+      bgMode.addEventListener("change", () => {
+        setBgGroupVisibility(bgMode.value);
+        saveSetting(STORAGE_KEYS.bgMode, bgMode.value);
+        applyBackground();
+      });
+
+      bgPreset.addEventListener("change", () => {
+        bgColor.value = bgPreset.value;
+        saveSetting(STORAGE_KEYS.bgColor, bgColor.value);
+        applyBackground();
+      });
+
+      bgColor.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.bgColor, bgColor.value);
+        applyBackground();
+      });
+
+      gradPreset.addEventListener("change", () => {
+        const parts = gradPreset.value.split("|");
+        gradStart.value = parts[0];
+        gradEnd.value = parts[1];
+        gradAngle.value = parts[2];
+        gradAngleValue.textContent = `${gradAngle.value}deg`;
+        saveSetting(STORAGE_KEYS.gradStart, gradStart.value);
+        saveSetting(STORAGE_KEYS.gradEnd, gradEnd.value);
+        saveSetting(STORAGE_KEYS.gradAngle, gradAngle.value);
+        applyBackground();
+      });
+
+      gradStart.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.gradStart, gradStart.value);
+        applyBackground();
+      });
+
+      gradEnd.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.gradEnd, gradEnd.value);
+        applyBackground();
+      });
+
+      gradAngle.addEventListener("input", () => {
+        gradAngleValue.textContent = `${gradAngle.value}deg`;
+        saveSetting(STORAGE_KEYS.gradAngle, gradAngle.value);
+        applyBackground();
+      });
+
+      bgImage.addEventListener("change", () => {
+        saveSetting(STORAGE_KEYS.bgImage, bgImage.value.trim());
+        applyBackground();
+      });
+
+      bgRepeat.addEventListener("change", () => {
+        saveSetting(STORAGE_KEYS.bgRepeat, bgRepeat.value);
+        applyBackground();
+      });
+
+      bgSize.addEventListener("change", () => {
+        saveSetting(STORAGE_KEYS.bgSize, bgSize.value);
+        applyBackground();
+      });
+
+      questionScaleInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.questionScale, questionScaleInput.value);
+        applyTextStyles();
+      });
+
+      questionColorInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.questionColor, questionColorInput.value);
+        applyTextStyles();
+      });
+
+      clueScaleInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.clueScale, clueScaleInput.value);
+        applyTextStyles();
+      });
+
+      clueColorInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.clueColor, clueColorInput.value);
+        applyTextStyles();
+      });
+
+      answerScaleInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.answerScale, answerScaleInput.value);
+        applyTextStyles();
+      });
+
+      answerColorInput.addEventListener("input", () => {
+        saveSetting(STORAGE_KEYS.answerColor, answerColorInput.value);
+        applyTextStyles();
+      });
+
+      if (resetDefaultsButton) {
+        resetDefaultsButton.addEventListener("click", resetToDefaults);
+      }
+
+      if (syncToggle) {
+        syncToggle.addEventListener("change", () => {
+          syncEnabled = syncToggle.checked;
+          localStorage.setItem(SYNC_ENABLED_KEY, String(syncEnabled));
+          if (syncClient && syncEnabled) {
+            syncClient.commitNow();
+          }
+          updateSyncIndicator();
+        });
+      }
+
+      if (window.beaconSync) {
+        syncClient = window.beaconSync.createClient({
+          scope: window.beaconIdentity?.buildSyncScope?.("trivia") || "trivia",
+          getState: exportSyncState,
+          applyState: applySyncState,
+          onStatus: updateSyncIndicator
+        });
+        syncClient.start().then((started) => {
+          if (!started) {
+            updateSyncIndicator({ configured: false, connected: false, ready: false });
+          }
+        });
+      }
+
+      ensurePrimaryEndingClock();
+
+      const data = await loadData();
+      const items = data.items.map(normalizeItem).filter(Boolean);
+      const safeItems = items.length ? items : fallbackData.items.map(normalizeItem).filter(Boolean);
+      const triviaItems = safeItems.length ? safeItems : [normalizeItem(fallbackData.items[0])];
+
+      const QUESTION_SECONDS = 4;
+      const CLUE_SECONDS = 12;
+      const ANSWER_SECONDS = 6;
+      const TOTAL_SECONDS = QUESTION_SECONDS + CLUE_SECONDS + ANSWER_SECONDS;
+      const TRIVIA_START_EPOCH = new Date("2025-01-01T00:00:00Z").getTime();
+      const USE_TRIVIA_SYNC = true;
+      const localStart = Date.now();
+      let lastKey = "";
+
+      function getElapsedSeconds() {
+        const now = Date.now();
+        if (USE_TRIVIA_SYNC) {
+          const delta = Math.max(0, Math.floor((now - TRIVIA_START_EPOCH) / 1000));
+          return delta;
+        }
+        return Math.max(0, Math.floor((now - localStart) / 1000));
+      }
+
+      function computeState(elapsedSeconds) {
+        const index = Math.floor(elapsedSeconds / TOTAL_SECONDS) % triviaItems.length;
+        const position = elapsedSeconds % TOTAL_SECONDS;
+        if (position < QUESTION_SECONDS) {
+          return { index, phase: "question", clueCount: 0 };
+        }
+      if (position < QUESTION_SECONDS + CLUE_SECONDS) {
+        const clueOffset = position - QUESTION_SECONDS;
+        const clueCount = Math.min(3, Math.floor(clueOffset / 4) + 1);
+        return { index, phase: "clues", clueCount };
+      }
+        return { index, phase: "answer", clueCount: 0 };
+      }
+
+      function tick() {
+        const state = computeState(getElapsedSeconds());
+        const key = `${state.index}-${state.phase}-${state.clueCount}`;
+        if (key === lastKey) return;
+        lastKey = key;
+        renderState(triviaItems[state.index], state.phase, state.clueCount);
+      }
+
+      tick();
+      setInterval(tick, 1000);
+    })();
+  </script>
+</body>
+</html>

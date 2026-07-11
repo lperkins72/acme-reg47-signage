@@ -1,0 +1,127 @@
+[
+{
+    "device": "nuc-001",
+    "path": "devices/reg47/nuc-001.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-001"
+  },
+  {
+    "device": "nuc-002",
+    "path": "devices/reg47/nuc-002.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-002"
+  },
+  {
+    "device": "nuc-003",
+    "path": "devices/reg47/nuc-003.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-003"
+  },
+  {
+    "device": "nuc-004",
+    "path": "devices/reg47/nuc-004.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-004"
+  },
+  {
+    "device": "nuc-005",
+    "path": "devices/reg47/nuc-005.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-005"
+  },
+  {
+    "device": "nuc-006",
+    "path": "devices/reg47/nuc-006.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-006"
+  },
+  {
+    "device": "nuc-007",
+    "path": "devices/reg47/nuc-007.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-007"
+  },
+  {
+    "device": "nuc-008",
+    "path": "devices/reg47/nuc-008.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-008"
+  },
+  {
+    "device": "nuc-009",
+    "path": "devices/reg47/nuc-009.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-009"
+  },
+  {
+    "device": "nuc-010",
+    "path": "devices/reg47/nuc-010.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-010"
+  },
+  {
+    "device": "nuc-011",
+    "path": "devices/reg47/nuc-011.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-011"
+  },
+  {
+    "device": "nuc-012",
+    "path": "devices/reg47/nuc-012.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-012"
+  },
+  {
+    "device": "nuc-013",
+    "path": "devices/reg47/nuc-013.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-013"
+  },
+  {
+    "device": "nuc-014",
+    "path": "devices/reg47/nuc-014.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-014"
+  },
+  {
+    "device": "nuc-015",
+    "path": "devices/reg47/nuc-015.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-015"
+  },
+  {
+    "device": "nuc-016",
+    "path": "devices/reg47/nuc-016.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-016"
+  },
+  {
+    "device": "nuc-017",
+    "path": "devices/reg47/nuc-017.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-017"
+  },
+  {
+    "device": "nuc-018",
+    "path": "devices/reg47/nuc-018.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-018"
+  },
+  {
+    "device": "nuc-019",
+    "path": "devices/reg47/nuc-019.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-019"
+  },
+  {
+    "device": "nuc-020",
+    "path": "devices/reg47/nuc-020.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-020"
+  },
+  {
+    "device": "nuc-021",
+    "path": "devices/reg47/nuc-021.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-021"
+  },
+  {
+    "device": "nuc-022",
+    "path": "devices/reg47/nuc-022.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-022"
+  },
+  {
+    "device": "nuc-023",
+    "path": "devices/reg47/nuc-023.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-023"
+  },
+  {
+    "device": "nuc-024",
+    "path": "devices/reg47/nuc-024.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-024"
+  },
+  {
+    "device": "nuc-025",
+    "path": "devices/reg47/nuc-025.html",
+    "url": "/?tenant=acme&region=reg47&device=nuc-025"
+  }
+]

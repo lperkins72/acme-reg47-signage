@@ -1,0 +1,1801 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Secondary Zone – Weather</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* ===============================
+   CSS VARIABLES (CALIBRATION)
+================================ */
+:root {
+  --now-temp-size: 64px;
+  --forecast-temp-size: 55px;
+  --now-condition-size: 55px;
+  --day-label-size: 20px;
+  --icon-size: 46px;
+  --segment-gap: 24px;
+  --now-segment-width: 430px;
+  --now-condition-box-width: 260px;
+  --now-condition-scale: 1;
+  --logo-slot-width: 240px;
+  --bar-top: #2f6fb5;
+  --bar-mid: #1f4f8a;
+  --bar-bottom: #173e6d;
+  --screen-scale: 1;
+}
+
+/* ===============================
+   GLOBAL RESET
+================================ */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* ===============================
+   WEATHER BAR (3D BROADCAST)
+================================ */
+.weather-bar {
+  width: 100vw;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: calc(16px * var(--screen-scale)) calc(26px * var(--screen-scale));
+  overflow: hidden;
+  position: relative;
+
+  background: linear-gradient(
+    to bottom,
+    var(--bar-top) 0%,
+    var(--bar-mid) 45%,
+    var(--bar-bottom) 100%
+  );
+
+  border-radius: calc(12px * var(--screen-scale));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.35),
+    inset 0 -2px 4px rgba(0,0,0,0.45),
+    0 4px 8px rgba(0,0,0,0.6);
+}
+
+.weather-status {
+  position: absolute;
+  top: calc(6px * var(--screen-scale));
+  right: calc(10px * var(--screen-scale));
+  display: none;
+  padding: calc(3px * var(--screen-scale)) calc(7px * var(--screen-scale));
+  border-radius: 5px;
+  background: rgba(84, 57, 20, 0.92);
+  color: #fff7cc;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  font-size: calc(12px * var(--screen-scale));
+  line-height: 1.2;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.weather-status.is-visible {
+  display: block;
+}
+
+#weatherShift {
+  display: flex;
+  align-items: stretch;
+  width: calc(100% + (16px * var(--screen-scale)));
+  margin-left: calc(-8px * var(--screen-scale));
+  min-width: 0;
+  transition: transform 2s ease-in-out;
+  transform: translate(var(--weather-shift-x, 0px), var(--weather-shift-y, 0px));
+}
+
+#forecastDays {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: calc(var(--segment-gap) * var(--screen-scale));
+  margin-left: calc(var(--segment-gap) * var(--screen-scale));
+  min-width: 0;
+  overflow: hidden;
+}
+
+.logo-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 calc(var(--logo-slot-width) * var(--screen-scale));
+  align-self: stretch;
+  width: calc(var(--logo-slot-width) * var(--screen-scale));
+  min-width: calc(var(--logo-slot-width) * var(--screen-scale));
+  margin-left: calc(var(--segment-gap) * var(--screen-scale));
+  overflow: hidden;
+}
+
+.logo-slot.is-hidden {
+  flex-basis: 0;
+  width: 0;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.logo-frame {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ===============================
+   SEGMENTS
+================================ */
+.segment {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: calc(160px * var(--screen-scale));
+  color: white;
+}
+
+.segment.now {
+  flex: 0 1 calc(var(--now-segment-width) * var(--screen-scale));
+  max-width: calc(var(--now-segment-width) * var(--screen-scale));
+  min-width: calc(300px * var(--screen-scale));
+}
+
+/* ===============================
+   TYPOGRAPHY
+================================ */
+.label {
+  font-size: calc(var(--day-label-size) * var(--screen-scale));
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.95;
+}
+
+.temp {
+  font-size: calc(var(--now-temp-size) * var(--screen-scale));
+  font-weight: 800;
+  line-height: 1;
+}
+
+.degree {
+  font-size: 0.4em;
+  vertical-align: top;
+}
+
+.condition {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--screen-scale));
+  font-size: calc(var(--forecast-temp-size) * var(--screen-scale));
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.condition span {
+  white-space: nowrap;
+}
+
+.now-line {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(12px * var(--screen-scale));
+  min-width: 0;
+}
+
+.now-condition {
+  display: flex;
+  flex: 0 0 calc(var(--now-condition-box-width) * var(--screen-scale));
+  align-items: flex-start;
+  gap: calc(8px * var(--screen-scale));
+  width: calc(var(--now-condition-box-width) * var(--screen-scale));
+  max-width: calc(var(--now-condition-box-width) * var(--screen-scale));
+  min-width: 0;
+  font-size: calc(var(--now-condition-size) * var(--screen-scale) * var(--now-condition-scale));
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.now-condition span {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-wrap: balance;
+}
+
+/* ===============================
+   ICONS
+================================ */
+.weather-icon {
+  width: calc(var(--icon-size) * var(--screen-scale));
+  height: calc(var(--icon-size) * var(--screen-scale));
+  color: #ffdc6a;
+}
+
+/* ===============================
+   SETTINGS MODAL
+================================ */
+#settingsModal {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: none;
+  z-index: 9999;
+  cursor: move;
+  touch-action: none;
+}
+
+#settingsModal.is-open {
+  display: block;
+}
+
+#settingsModal .modal-panel {
+  width: 280px;
+  padding: 14px;
+  background: rgba(20,24,30,0.96);
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+
+body.settings-open #settingsModal.is-open {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 11, 14, 0.7);
+  padding: 4vh 4vw;
+  cursor: default;
+}
+
+body.settings-open #settingsModal .modal-panel {
+  width: min(90vw, 720px);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#settingsModal .modal-panel h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+#settingsModal .modal-panel .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#settingsModal .modal-panel .close-button {
+  border: none;
+  background: transparent;
+  color: #c2c9d1;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+#settingsModal .modal-panel .close-button:hover {
+  color: #ffffff;
+}
+
+#settingsModal .modal-panel label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+#settingsModal .modal-panel input,
+#settingsModal .modal-panel select {
+  width: 100%;
+  cursor: default;
+}
+
+#settingsModal .modal-panel .inline-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+#settingsModal .modal-panel .inline-label input {
+  width: auto;
+}
+
+#settingsModal .modal-panel input[type="text"] {
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #2b3340;
+  background: #0f1318;
+  color: #f2f4f7;
+}
+
+#settingsModal .modal-panel .apply-button {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #2b3340;
+  background: #1c2430;
+  color: #f2f4f7;
+  cursor: pointer;
+}
+
+#settingsModal .modal-panel .apply-button:hover {
+  background: #232c3a;
+}
+
+#settingsModal .modal-panel .setting-value {
+  font-size: 12px;
+  color: #aab3bd;
+  text-align: right;
+}
+
+#settingsModal .modal-panel .section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #aab3bd;
+  margin: 12px 0 6px;
+}
+
+#settingsModal .modal-panel .color-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#settingsModal .modal-panel .color-row input[type="checkbox"] {
+  width: auto;
+}
+
+#settingsModal .modal-panel .color-row input[type="color"] {
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #2b3340;
+  background: transparent;
+}
+
+#settingsModal .modal-panel .color-label {
+  font-size: 12px;
+  color: #d0d6dd;
+}
+
+#settingsModal .logo-position {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="weather-bar" aria-live="polite">
+  <div class="weather-status" id="weatherStatus"></div>
+  <div id="weatherShift">
+    <!-- CURRENT -->
+    <div class="segment now">
+      <div class="label">NOW</div>
+      <div class="now-line">
+        <div class="temp">
+          <span id="currentTemp">--</span><span class="degree">&deg;</span>
+        </div>
+        <div class="now-condition">
+          <img id="currentIcon" class="weather-icon" alt="">
+          <span id="currentCondition">Loading</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORECAST -->
+    <div id="forecastDays"></div>
+
+    <div class="logo-slot" id="logoSlot">
+      <div class="logo-frame">
+        <img id="logoImage" alt="">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h3>Weather Calibration</h3>
+      <button class="close-button" type="button" aria-label="Close">x</button>
+    </div>
+
+    <label>ZIP Code
+      <input id="zipInput" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="39201">
+    </label>
+
+    <button class="apply-button" id="applyLocation" type="button">Apply ZIP Code</button>
+    <div class="setting-value" id="locationStatus"></div>
+
+    <label>Weather Refresh (minutes)
+      <input id="weatherRefresh" type="number" min="1" max="120" value="10">
+    </label>
+
+    <div class="section-title">Bar Colors</div>
+
+    <label>Rotate Colors (minutes)
+      <input id="barInterval" type="number" min="1" max="120" value="5">
+    </label>
+
+    <div id="barColorList">
+      <div class="color-row">
+        <input class="bar-color-toggle" type="checkbox" data-index="0">
+        <span class="color-label">Color 1</span>
+        <input class="bar-color-picker" type="color" data-index="0" value="#1f4f8a">
+      </div>
+      <div class="color-row">
+        <input class="bar-color-toggle" type="checkbox" data-index="1">
+        <span class="color-label">Color 2</span>
+        <input class="bar-color-picker" type="color" data-index="1" value="#2f6fb5">
+      </div>
+      <div class="color-row">
+        <input class="bar-color-toggle" type="checkbox" data-index="2">
+        <span class="color-label">Color 3</span>
+        <input class="bar-color-picker" type="color" data-index="2" value="#173e6d">
+      </div>
+      <div class="color-row">
+        <input class="bar-color-toggle" type="checkbox" data-index="3">
+        <span class="color-label">Color 4</span>
+        <input class="bar-color-picker" type="color" data-index="3" value="#2f6a3b">
+      </div>
+      <div class="color-row">
+        <input class="bar-color-toggle" type="checkbox" data-index="4">
+        <span class="color-label">Color 5</span>
+        <input class="bar-color-picker" type="color" data-index="4" value="#6b2f3f">
+      </div>
+    </div>
+
+    <div class="section-title">Logo</div>
+    <label>Logo Image Path
+      <input id="logoPath" type="text" placeholder="assets/logo.jpg">
+    </label>
+    <label class="inline-label">
+      <input id="logoEnabled" type="checkbox">
+      Show logo
+    </label>
+    <div class="logo-position" role="group" aria-label="Logo position">
+      <label class="inline-label">
+        <input type="radio" name="logoPosition" value="between">
+        Position 1 (between now and forecast)
+      </label>
+      <label class="inline-label">
+        <input type="radio" name="logoPosition" value="end">
+        Position 2 (end)
+      </label>
+    </div>
+
+    <div class="section-title">Burn-In Protection</div>
+    <label>Shift Strength (px)
+      <input id="weatherShiftStrength" type="range" min="1" max="8" step="1" value="5">
+    </label>
+    <div class="setting-value">Enabled when logo is shown.</div>
+
+    <label>Setting
+      <select id="settingSelect"></select>
+    </label>
+
+    <label>Value
+      <input id="settingSlider" type="range" min="0" max="100" value="0">
+    </label>
+
+    <div class="setting-value" id="settingValue"></div>
+
+    <div class="section-title">Sync</div>
+    <button class="apply-button" id="syncPush" type="button">Push Settings to Screens</button>
+    <div class="setting-value" id="syncStatus"></div>
+  </div>
+</div>
+
+<script src="assets/bdn-identity.js"></script>
+<script src="assets/bdn-runtime-config.js"></script>
+<script src="assets/sync.js"></script>
+<script src="assets/kiosk-color-picker.js"></script>
+<script>
+window.beaconIdentity?.applyIdentityDataset(document.documentElement);
+
+/* ===============================
+   CONFIG
+================================ */
+const LAT = 32.2988;
+const LON = -90.1848;
+const DEFAULT_ZIP = "39201";
+const ZIP_LOOKUP_API_BASE = "https://api.zippopotam.us/us";
+const todayKey = new Date().toISOString().split("T")[0];
+
+let SETTINGS_AUTH_API = "";
+const LOCAL_SETTINGS_PIN = "5353";
+const SETTINGS_PIN_STORAGE_KEY = "beacon_secondary_settings_pin";
+const LOCATION_STORAGE_KEY = "beacon_weather_location";
+const WEATHER_REFRESH_KEY = "beacon_weather_refresh";
+const WEATHER_SNAPSHOT_KEY = "beacon_weather_last_success";
+const WEATHER_REFRESH_DEFAULT = 10;
+const BAR_COLORS_KEY = "beacon_weather_bar_colors";
+const BAR_INTERVAL_KEY = "beacon_weather_bar_interval";
+const BAR_DEFAULT_INTERVAL = 5;
+const LOGO_PATH_KEY = "beacon_weather_logo_path";
+const LOGO_ENABLED_KEY = "beacon_weather_logo_enabled";
+const LOGO_POSITION_KEY = "beacon_weather_logo_position";
+const SHIFT_STRENGTH_KEY = "beacon_weather_shift_strength";
+const SETTINGS = [
+  { label: "NOW Temp", cssVar: "--now-temp-size", min: 48, max: 80, defaultValue: 64 },
+  { label: "Forecast Temp", cssVar: "--forecast-temp-size", min: 22, max: 80, defaultValue: 55 },
+  { label: "NOW Cond Size", cssVar: "--now-condition-size", min: 22, max: 80, defaultValue: 55 },
+  { label: "NOW Cond Width", cssVar: "--now-condition-box-width", min: 180, max: 360, defaultValue: 260 },
+  { label: "Day Label", cssVar: "--day-label-size", min: 14, max: 80, defaultValue: 20 },
+  { label: "Icon Size", cssVar: "--icon-size", min: 32, max: 80, defaultValue: 46 },
+  { label: "Spacing", cssVar: "--segment-gap", min: 12, max: 80, defaultValue: 24 }
+];
+const DEFAULT_BAR_COLORS = [
+  { base: "#1f4f8a", enabled: true },
+  { base: "#2f6fb5", enabled: false },
+  { base: "#173e6d", enabled: false },
+  { base: "#2f6a3b", enabled: false },
+  { base: "#6b2f3f", enabled: false }
+];
+
+let currentLat = LAT;
+let currentLon = LON;
+let currentZip = DEFAULT_ZIP;
+let currentLocationLabel = "";
+let weatherRefreshMinutes = WEATHER_REFRESH_DEFAULT;
+let weatherRefreshTimer = null;
+let barColors = DEFAULT_BAR_COLORS.map(item => ({ ...item }));
+let barIntervalMinutes = BAR_DEFAULT_INTERVAL;
+let barRotationTimer = null;
+let barActiveIndex = 0;
+const SHIFT_INTERVAL_MS = 60000;
+const SHIFT_OFFSETS = [
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
+  { x: 0, y: -1 }
+];
+const CURRENT_CONDITION_SCALE_STEPS = [
+  { max: 18, scale: 1 },
+  { max: 28, scale: 0.92 },
+  { max: 40, scale: 0.84 },
+  { max: 52, scale: 0.76 },
+  { max: Infinity, scale: 0.68 }
+];
+let weatherShiftTimer = null;
+let weatherShiftIndex = 0;
+const settingsModal = document.getElementById("settingsModal");
+const logoSlot = document.getElementById("logoSlot");
+const logoImage = document.getElementById("logoImage");
+const forecastDays = document.getElementById("forecastDays");
+const weatherShiftEl = document.getElementById("weatherShift");
+const weatherStatus = document.getElementById("weatherStatus");
+const currentTemp = document.getElementById("currentTemp");
+const currentCondition = document.getElementById("currentCondition");
+const currentIcon = document.getElementById("currentIcon");
+let syncClient = null;
+let syncReady = false;
+let syncStatusTimer = null;
+const BASELINE_WIDTH = 1920;
+const IS_MODAL_HOST = new URLSearchParams(window.location.search).get("modalHost") === "1";
+
+/* ===============================
+   ICON MAP
+================================ */
+const ICON_MAP = [
+  { match: ["thunder"], icon: "storm.svg" },
+  { match: ["snow", "sleet"], icon: "snow.svg" },
+  { match: ["rain", "shower"], icon: "rain.svg" },
+  { match: ["fog"], icon: "fog.svg" },
+  { match: ["cloudy"], icon: "cloudy.svg" },
+  { match: ["partly"], icon: "partly-cloudy.svg" },
+  { match: ["sunny", "clear"], icon: "sunny.svg" }
+];
+
+function resolveIcon(text) {
+  if (!text) return "assets/icons/unknown.svg";
+  const t = text.toLowerCase();
+  for (const rule of ICON_MAP) {
+    if (rule.match.some(k => t.includes(k))) {
+      return `assets/icons/${rule.icon}`;
+    }
+  }
+  return "assets/icons/unknown.svg";
+}
+
+/* ===============================
+   WEATHER FETCH
+================================ */
+async function loadWeather() {
+  try {
+    const p = await fetch(`https://api.weather.gov/points/${currentLat},${currentLon}`).then(r=>r.json());
+    const { gridId, gridX, gridY, forecast, forecastHourly, observationStations } = p.properties;
+
+    const forecastUrl = forecast || `https://api.weather.gov/gridpoints/${gridId}/${gridX},${gridY}/forecast`;
+    const [f, current] = await Promise.all([
+      fetch(forecastUrl).then(r=>r.json()),
+      loadCurrentWeather({ forecastHourly, observationStations })
+    ]);
+
+    const currentPeriod = current || f.properties.periods[0];
+    renderWeatherPayload(currentPeriod, f.properties.periods);
+    saveWeatherSnapshot(currentPeriod, f.properties.periods);
+    setWeatherStatus("");
+  } catch {
+    const snapshot = loadWeatherSnapshot();
+    if (snapshot) {
+      renderWeatherPayload(snapshot.current, snapshot.periods);
+      setWeatherStatus(`Weather stale: ${formatSnapshotAge(snapshot.savedAt)}`);
+      return;
+    }
+    renderFallback();
+  }
+}
+
+async function loadCurrentWeather({ forecastHourly, observationStations }) {
+  const observed = await loadCurrentObservation(observationStations);
+  if (observed) return observed;
+  return loadCurrentHourlyForecast(forecastHourly);
+}
+
+async function loadCurrentObservation(observationStations) {
+  if (!observationStations) return null;
+
+  try {
+    const stations = await fetch(observationStations).then(r=>r.json());
+    const stationList = Array.isArray(stations.features) ? stations.features.slice(0, 3) : [];
+
+    for (const station of stationList) {
+      if (!station.id) continue;
+      try {
+        const latest = await fetch(`${station.id}/observations/latest`).then(r=>r.json());
+        const celsius = latest?.properties?.temperature?.value;
+        if (!Number.isFinite(celsius)) continue;
+
+        return {
+          temperature: Math.round((celsius * 9 / 5) + 32),
+          shortForecast: latest.properties.textDescription || "Current Conditions"
+        };
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function loadCurrentHourlyForecast(forecastHourly) {
+  if (!forecastHourly) return null;
+
+  try {
+    const hourly = await fetch(forecastHourly).then(r=>r.json());
+    const period = hourly?.properties?.periods?.[0];
+    if (!period || !Number.isFinite(period.temperature)) return null;
+
+    return {
+      temperature: period.temperature,
+      shortForecast: period.shortForecast || "Current Conditions"
+    };
+  } catch {
+    return null;
+  }
+}
+
+function renderCurrent(p) {
+  currentTemp.textContent = Math.round(p.temperature);
+  currentCondition.textContent = p.shortForecast;
+  currentIcon.src = resolveIcon(p.shortForecast);
+  applyCurrentConditionLayout(p.shortForecast);
+}
+
+function renderFiveDay(periods) {
+  forecastDays.innerHTML = "";
+  if (!Array.isArray(periods)) return;
+  const days = {};
+
+  periods.forEach(p => {
+    const dayKey = p.startTime.split("T")[0];
+    if (!days[dayKey]) days[dayKey] = {};
+
+    if (p.isDaytime) {
+      days[dayKey].name =
+        new Date(p.startTime).toLocaleDateString("en-US",{weekday:"short"});
+      days[dayKey].high = p.temperature;
+      days[dayKey].cond = p.shortForecast;
+    } else {
+      days[dayKey].low = p.temperature;
+    }
+  });
+
+  Object.values(days)
+    .filter(d => d.high !== undefined && d.low !== undefined)
+    .slice(0,3)
+    .forEach(d => {
+      const el = document.createElement("div");
+      el.className = "segment";
+      el.innerHTML = `
+        <div class="label">${d.name}</div>
+        <div class="condition">
+          <img class="weather-icon" src="${resolveIcon(d.cond)}">
+          <span>${d.high}&deg; / ${d.low}&deg;</span>
+        </div>`;
+      forecastDays.appendChild(el);
+    });
+}
+
+function renderWeatherPayload(current, periods) {
+  renderCurrent(current);
+  renderFiveDay(periods);
+}
+
+function setWeatherStatus(message) {
+  if (!weatherStatus) return;
+  weatherStatus.textContent = message || "";
+  weatherStatus.classList.toggle("is-visible", Boolean(message));
+}
+
+function saveWeatherSnapshot(current, periods) {
+  try {
+    localStorage.setItem(WEATHER_SNAPSHOT_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      current,
+      periods: Array.isArray(periods) ? periods : []
+    }));
+  } catch {
+    // Weather snapshot is a fallback only.
+  }
+}
+
+function loadWeatherSnapshot() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WEATHER_SNAPSHOT_KEY) || "null");
+    if (!parsed || !parsed.current || !Array.isArray(parsed.periods)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function formatSnapshotAge(savedAt) {
+  const ageMs = Date.now() - Number(savedAt || 0);
+  if (!Number.isFinite(ageMs) || ageMs < 0) return "last saved";
+  const minutes = Math.max(1, Math.round(ageMs / 60000));
+  if (minutes < 60) return `${minutes} min old`;
+  const hours = Math.round(minutes / 60);
+  return `${hours} hr old`;
+}
+
+function renderFallback() {
+  currentTemp.textContent = "--";
+  currentCondition.textContent = "Weather offline";
+  currentIcon.src = "assets/icons/unknown.svg";
+  forecastDays.innerHTML = "";
+  applyCurrentConditionLayout("Weather offline");
+  setWeatherStatus("Weather offline");
+}
+
+/* ===============================
+   SETTINGS + LOCK
+================================ */
+function notifyParent(open) {
+  if (!window.parent) return;
+  window.parent.postMessage({ type: "beacon-settings-state", target: "secondary", open }, "*");
+}
+
+function applyScreenScale() {
+  const width = window.innerWidth || BASELINE_WIDTH;
+  const scale = width / BASELINE_WIDTH;
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  document.documentElement.style.setProperty("--screen-scale", safeScale.toFixed(4));
+}
+
+function applyCurrentConditionLayout(text) {
+  const normalized = (text || "").replace(/\s+/g, " ").trim();
+  const textLength = normalized.length;
+  const scaleStep = CURRENT_CONDITION_SCALE_STEPS.find((step) => textLength <= step.max)
+    || CURRENT_CONDITION_SCALE_STEPS[CURRENT_CONDITION_SCALE_STEPS.length - 1];
+  document.documentElement.style.setProperty("--now-condition-scale", scaleStep.scale.toFixed(2));
+  currentCondition.title = normalized;
+}
+
+function setSettingsVisible(visible) {
+  settingsModal.classList.toggle("is-open", visible);
+  document.body.classList.toggle("settings-open", visible);
+  notifyParent(visible);
+}
+
+function normalizeSettingsPin(value) {
+  return String(value ?? "").trim();
+}
+
+function getLocalSettingsPins() {
+  const pins = new Set();
+  const candidates = [
+    LOCAL_SETTINGS_PIN,
+    localStorage.getItem(SETTINGS_PIN_STORAGE_KEY),
+    window.BEACON_SECONDARY_SETTINGS_PIN
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeSettingsPin(candidate);
+    if (/^\d{4}$/.test(normalized)) {
+      pins.add(normalized);
+    }
+  }
+
+  return pins;
+}
+
+async function verifySettingsCode(pin) {
+  if (!SETTINGS_AUTH_API) return false;
+  const syncScope = window.beaconIdentity?.buildSyncScope?.("secondary") || "secondary";
+  const response = await fetch(SETTINGS_AUTH_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin, scope: syncScope })
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || "auth_failed");
+  }
+
+  return Boolean(data.ok);
+}
+
+async function requestSettingsOpen() {
+  const pin = normalizeSettingsPin(prompt("Enter calibration code:"));
+  if (!pin) {
+    if (IS_MODAL_HOST) {
+      notifyParent(false);
+    }
+    return;
+  }
+
+  if (getLocalSettingsPins().has(pin)) {
+    setSettingsVisible(true);
+    return;
+  }
+
+  try {
+    const isAuthorized = await verifySettingsCode(pin);
+    if (isAuthorized) {
+      setSettingsVisible(true);
+      return;
+    }
+  } catch (error) {
+    console.warn("Weather calibration auth failed:", error);
+  }
+
+  if (IS_MODAL_HOST) {
+    notifyParent(false);
+  }
+  alert("Invalid calibration code.");
+}
+
+function isShortcut(event, digit) {
+  if (!event.ctrlKey || !event.shiftKey) return false;
+  if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
+  return event.key === String(digit);
+}
+
+function requestTopModalOpen(target) {
+  try {
+    if (window.top && window.top !== window) {
+      try {
+        if (typeof window.top.beaconNextRequestOpen === "function") {
+          window.top.beaconNextRequestOpen(target);
+          return true;
+        }
+      } catch {}
+      window.top.postMessage({ type: "beacon-request-open", target }, "*");
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+document.addEventListener("keydown", (event) => {
+  if (isShortcut(event, 1)) {
+    event.preventDefault();
+    window.top.postMessage({ type: "beacon-request-open", target: "primary" }, "*");
+  } else if (isShortcut(event, 2) || isShortcut(event, 3)) {
+    event.preventDefault();
+    if (!requestTopModalOpen("secondary")) {
+      requestSettingsOpen();
+    }
+  } else if (
+    (event.ctrlKey && event.shiftKey && event.code === "KeyF")
+    || isShortcut(event, 4)
+  ) {
+    event.preventDefault();
+    requestTopModalOpen("footer");
+  } else if (event.key === "Escape" && settingsModal.classList.contains("is-open")) {
+    event.preventDefault();
+    setSettingsVisible(false);
+  }
+});
+
+window.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
+  if (data.target === "secondary") {
+    if (data.type === "beacon-request-open") {
+      requestSettingsOpen();
+    } else {
+      setSettingsVisible(false);
+    }
+  }
+});
+
+document.querySelector("#settingsModal .close-button").addEventListener("click", () => {
+  setSettingsVisible(false);
+});
+
+let isDraggingModal = false;
+let modalOffsetX = 0;
+let modalOffsetY = 0;
+
+settingsModal.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  if (document.body.classList.contains("settings-open")) return;
+  if (event.target.closest("input, select, button")) return;
+
+  const rect = settingsModal.getBoundingClientRect();
+  modalOffsetX = event.clientX - rect.left;
+  modalOffsetY = event.clientY - rect.top;
+  isDraggingModal = true;
+
+  settingsModal.style.right = "auto";
+  settingsModal.style.bottom = "auto";
+  settingsModal.style.left = `${rect.left}px`;
+  settingsModal.style.top = `${rect.top}px`;
+
+  settingsModal.setPointerCapture(event.pointerId);
+});
+
+settingsModal.addEventListener("pointermove", (event) => {
+  if (!isDraggingModal) return;
+  settingsModal.style.left = `${event.clientX - modalOffsetX}px`;
+  settingsModal.style.top = `${event.clientY - modalOffsetY}px`;
+});
+
+settingsModal.addEventListener("pointerup", (event) => {
+  if (!isDraggingModal) return;
+  isDraggingModal = false;
+  settingsModal.releasePointerCapture(event.pointerId);
+});
+
+settingsModal.addEventListener("pointercancel", (event) => {
+  if (!isDraggingModal) return;
+  isDraggingModal = false;
+  settingsModal.releasePointerCapture(event.pointerId);
+});
+
+const zipInput = document.getElementById("zipInput");
+const applyLocation = document.getElementById("applyLocation");
+const locationStatus = document.getElementById("locationStatus");
+const weatherRefreshInput = document.getElementById("weatherRefresh");
+const barIntervalInput = document.getElementById("barInterval");
+const barColorToggles = Array.from(document.querySelectorAll(".bar-color-toggle"));
+const barColorPickers = Array.from(document.querySelectorAll(".bar-color-picker"));
+const logoPathInput = document.getElementById("logoPath");
+const logoEnabledInput = document.getElementById("logoEnabled");
+const logoPositionInputs = Array.from(document.querySelectorAll("input[name=\"logoPosition\"]"));
+const weatherShiftStrengthInput = document.getElementById("weatherShiftStrength");
+const syncPushButton = document.getElementById("syncPush");
+const syncStatus = document.getElementById("syncStatus");
+
+function normalizeZip(value) {
+  const cleaned = String(value || "").trim();
+  const match = cleaned.match(/^(\d{5})(?:-\d{4})?$/);
+  return match ? match[1] : "";
+}
+
+function setLocationInputs() {
+  zipInput.value = currentZip || "";
+  if (currentLocationLabel) {
+    locationStatus.textContent = currentZip
+      ? `Using ${currentZip} (${currentLocationLabel}).`
+      : `Using ${currentLocationLabel}.`;
+  } else if (currentZip) {
+    locationStatus.textContent = `Using ${currentZip}.`;
+  }
+}
+
+function saveCurrentLocation() {
+  localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify({
+    zip: currentZip,
+    lat: currentLat,
+    lon: currentLon,
+    label: currentLocationLabel
+  }));
+}
+
+function loadStoredLocation() {
+  const saved = localStorage.getItem(LOCATION_STORAGE_KEY);
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    if (typeof parsed.lat === "number" && typeof parsed.lon === "number") {
+      currentLat = parsed.lat;
+      currentLon = parsed.lon;
+      currentZip = normalizeZip(parsed.zip);
+      currentLocationLabel = typeof parsed.label === "string" && parsed.label
+        ? parsed.label
+        : currentZip
+          ? ""
+          : "saved coordinates";
+    }
+  } catch {
+    return;
+  }
+}
+
+function isValidLatLon(lat, lon) {
+  if (Number.isNaN(lat) || Number.isNaN(lon)) return false;
+  return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+}
+
+async function resolveZipCode(zip) {
+  const normalizedZip = normalizeZip(zip);
+  if (!normalizedZip) {
+    throw new Error("invalid_zip");
+  }
+
+  const response = await fetch(`${ZIP_LOOKUP_API_BASE}/${normalizedZip}`);
+  if (!response.ok) {
+    throw new Error("zip_not_found");
+  }
+
+  const data = await response.json();
+  const place = Array.isArray(data.places) ? data.places[0] : null;
+  if (!place) {
+    throw new Error("zip_not_found");
+  }
+
+  const lat = Number(place.latitude);
+  const lon = Number(place.longitude);
+  if (!isValidLatLon(lat, lon)) {
+    throw new Error("invalid_zip_coordinates");
+  }
+
+  const city = place["place name"] || "";
+  const state = place["state abbreviation"] || place.state || "";
+  const label = [city, state].filter(Boolean).join(", ");
+  return { zip: normalizedZip, lat, lon, label };
+}
+
+function setCurrentLocation(location) {
+  currentZip = normalizeZip(location.zip);
+  currentLat = location.lat;
+  currentLon = location.lon;
+  currentLocationLabel = location.label || "";
+  saveCurrentLocation();
+  setLocationInputs();
+}
+
+function normalizeHex(value) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const match = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+  if (match[1].length === 3) {
+    const r = match[1][0];
+    const g = match[1][1];
+    const b = match[1][2];
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return trimmed.toLowerCase();
+}
+
+function resolveLogoAssetPath(path) {
+  const trimmed = String(path || "").trim();
+  if (!trimmed) return "";
+  if (/^(?:[a-z]+:)?\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("../assets/")) {
+    return trimmed.slice(3);
+  }
+  if (trimmed.startsWith("./assets/")) {
+    return trimmed.slice(2);
+  }
+  return trimmed;
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return null;
+  const value = parseInt(clean, 16);
+  if (Number.isNaN(value)) return null;
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255
+  };
+}
+
+function rgbToHex(r, g, b) {
+  const toHex = (value) => value.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function rgbToHsl(r, g, b) {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case red:
+        h = (green - blue) / d + (green < blue ? 6 : 0);
+        break;
+      case green:
+        h = (blue - red) / d + 2;
+        break;
+      default:
+        h = (red - green) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+function hslToRgb(h, s, l) {
+  const hue = h / 360;
+  const sat = s / 100;
+  const light = l / 100;
+  if (sat === 0) {
+    const value = Math.round(light * 255);
+    return { r: value, g: value, b: value };
+  }
+  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat;
+  const p = 2 * light - q;
+  const hueToRgb = (t) => {
+    let temp = t;
+    if (temp < 0) temp += 1;
+    if (temp > 1) temp -= 1;
+    if (temp < 1 / 6) return p + (q - p) * 6 * temp;
+    if (temp < 1 / 2) return q;
+    if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
+    return p;
+  };
+  return {
+    r: Math.round(hueToRgb(hue + 1 / 3) * 255),
+    g: Math.round(hueToRgb(hue) * 255),
+    b: Math.round(hueToRgb(hue - 1 / 3) * 255)
+  };
+}
+
+function adjustLightness(hex, delta) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const nextL = Math.min(100, Math.max(0, hsl.l + delta));
+  const nextRgb = hslToRgb(hsl.h, hsl.s, nextL);
+  return rgbToHex(nextRgb.r, nextRgb.g, nextRgb.b);
+}
+
+function deriveBarGradient(baseColor) {
+  const safeBase = normalizeHex(baseColor) || DEFAULT_BAR_COLORS[0].base;
+  return {
+    top: adjustLightness(safeBase, 12),
+    mid: safeBase,
+    bottom: adjustLightness(safeBase, -12)
+  };
+}
+
+function applyBarGradient(baseColor) {
+  const gradient = deriveBarGradient(baseColor);
+  document.documentElement.style.setProperty("--bar-top", gradient.top);
+  document.documentElement.style.setProperty("--bar-mid", gradient.mid);
+  document.documentElement.style.setProperty("--bar-bottom", gradient.bottom);
+}
+
+function sanitizeInterval(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return BAR_DEFAULT_INTERVAL;
+  return Math.max(1, Math.min(120, Math.round(numeric)));
+}
+
+function sanitizeWeatherInterval(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return WEATHER_REFRESH_DEFAULT;
+  return Math.max(1, Math.min(120, Math.round(numeric)));
+}
+
+function normalizeBarColors(list) {
+  const normalized = [];
+  for (let i = 0; i < DEFAULT_BAR_COLORS.length; i += 1) {
+    const source = list && list[i] ? list[i] : DEFAULT_BAR_COLORS[i];
+    const base = normalizeHex(source.base) || DEFAULT_BAR_COLORS[i].base;
+    const enabled = Boolean(source.enabled);
+    normalized.push({ base, enabled });
+  }
+  return normalized;
+}
+
+function saveBarSettings() {
+  localStorage.setItem(BAR_COLORS_KEY, JSON.stringify(barColors));
+  localStorage.setItem(BAR_INTERVAL_KEY, String(barIntervalMinutes));
+  if (syncClient) {
+    syncClient.commit();
+  }
+}
+
+function updateBarColorUI() {
+  barColorPickers.forEach((picker, index) => {
+    if (!barColors[index]) return;
+    picker.value = barColors[index].base;
+  });
+  barColorToggles.forEach((toggle, index) => {
+    if (!barColors[index]) return;
+    toggle.checked = barColors[index].enabled;
+  });
+}
+
+function getEnabledBarColors() {
+  return barColors.filter(item => item.enabled);
+}
+
+function startBarRotation() {
+  if (barRotationTimer) {
+    clearInterval(barRotationTimer);
+    barRotationTimer = null;
+  }
+
+  const enabled = getEnabledBarColors();
+  if (!enabled.length) {
+    applyBarGradient(DEFAULT_BAR_COLORS[0].base);
+    return;
+  }
+
+  if (enabled.length === 1) {
+    applyBarGradient(enabled[0].base);
+    return;
+  }
+
+  if (barActiveIndex >= enabled.length) {
+    barActiveIndex = 0;
+  }
+
+  applyBarGradient(enabled[barActiveIndex].base);
+  barRotationTimer = setInterval(() => {
+    barActiveIndex = (barActiveIndex + 1) % enabled.length;
+    applyBarGradient(enabled[barActiveIndex].base);
+  }, barIntervalMinutes * 60 * 1000);
+}
+
+function loadBarSettings() {
+  const storedColors = localStorage.getItem(BAR_COLORS_KEY);
+  if (storedColors) {
+    try {
+      barColors = normalizeBarColors(JSON.parse(storedColors));
+    } catch {
+      barColors = DEFAULT_BAR_COLORS.map(item => ({ ...item }));
+    }
+  } else {
+    barColors = DEFAULT_BAR_COLORS.map(item => ({ ...item }));
+  }
+
+  const storedInterval = localStorage.getItem(BAR_INTERVAL_KEY);
+  barIntervalMinutes = sanitizeInterval(storedInterval || BAR_DEFAULT_INTERVAL);
+  barIntervalInput.value = barIntervalMinutes;
+
+  updateBarColorUI();
+  startBarRotation();
+}
+
+function applyLogoSettings() {
+  const path = logoPathInput.value.trim();
+  const enabled = logoEnabledInput.checked;
+  localStorage.setItem(LOGO_PATH_KEY, path);
+  localStorage.setItem(LOGO_ENABLED_KEY, String(enabled));
+
+  logoSlot.classList.toggle("is-hidden", !enabled);
+  logoSlot.style.visibility = enabled ? "visible" : "hidden";
+  if (enabled && path) {
+    logoImage.src = resolveLogoAssetPath(path);
+  } else {
+    logoImage.removeAttribute("src");
+  }
+  applyLogoPosition();
+  applyWeatherShiftSettings();
+  if (syncClient) {
+    syncClient.commit();
+  }
+}
+
+function applyLogoPosition() {
+  const selected = logoPositionInputs.find(input => input.checked);
+  const position = selected ? selected.value : "end";
+  localStorage.setItem(LOGO_POSITION_KEY, position);
+  if (!forecastDays || !logoSlot || !forecastDays.parentNode) return;
+  if (position === "between") {
+    if (forecastDays.parentNode.firstElementChild !== logoSlot) {
+      forecastDays.parentNode.insertBefore(logoSlot, forecastDays);
+    }
+  } else {
+    forecastDays.parentNode.appendChild(logoSlot);
+  }
+  if (syncClient) {
+    syncClient.commit();
+  }
+}
+
+function loadLogoSettings() {
+  const storedPath = localStorage.getItem(LOGO_PATH_KEY) || "";
+  const storedEnabled = localStorage.getItem(LOGO_ENABLED_KEY);
+  const storedPosition = localStorage.getItem(LOGO_POSITION_KEY) || "end";
+  logoPathInput.value = storedPath;
+  if (storedEnabled === null) {
+    logoEnabledInput.checked = Boolean(storedPath);
+  } else {
+    logoEnabledInput.checked = storedEnabled === "true";
+  }
+  logoPositionInputs.forEach((input) => {
+    input.checked = input.value === storedPosition;
+  });
+  applyLogoSettings();
+}
+
+function sanitizeShiftStrength(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 5;
+  return Math.max(1, Math.min(8, Math.round(numeric)));
+}
+
+function applyWeatherShift() {
+  if (!weatherShiftEl) return;
+  const strength = sanitizeShiftStrength(weatherShiftStrengthInput.value);
+  const offset = SHIFT_OFFSETS[weatherShiftIndex];
+  weatherShiftEl.style.setProperty("--weather-shift-x", `${offset.x * strength}px`);
+  weatherShiftEl.style.setProperty("--weather-shift-y", `${offset.y * strength}px`);
+}
+
+function stopWeatherShift() {
+  if (weatherShiftTimer) {
+    clearInterval(weatherShiftTimer);
+    weatherShiftTimer = null;
+  }
+  if (!weatherShiftEl) return;
+  weatherShiftEl.style.setProperty("--weather-shift-x", "0px");
+  weatherShiftEl.style.setProperty("--weather-shift-y", "0px");
+}
+
+function startWeatherShift(enabled) {
+  stopWeatherShift();
+  if (!enabled) return;
+  weatherShiftIndex = 0;
+  applyWeatherShift();
+  weatherShiftTimer = setInterval(() => {
+    weatherShiftIndex = (weatherShiftIndex + 1) % SHIFT_OFFSETS.length;
+    applyWeatherShift();
+  }, SHIFT_INTERVAL_MS);
+}
+
+function applyWeatherShiftSettings() {
+  const enabled = logoEnabledInput.checked;
+  const strength = sanitizeShiftStrength(weatherShiftStrengthInput.value);
+  weatherShiftStrengthInput.value = strength;
+  localStorage.setItem(SHIFT_STRENGTH_KEY, String(strength));
+  startWeatherShift(enabled);
+  if (syncClient) {
+    syncClient.commit();
+  }
+}
+
+function startWeatherRefresh() {
+  if (weatherRefreshTimer) {
+    clearInterval(weatherRefreshTimer);
+    weatherRefreshTimer = null;
+  }
+
+  loadWeather();
+  weatherRefreshTimer = setInterval(() => {
+    loadWeather();
+  }, weatherRefreshMinutes * 60 * 1000);
+}
+
+applyLocation.addEventListener("click", async () => {
+  const zip = normalizeZip(zipInput.value);
+  if (!zip) {
+    locationStatus.textContent = "Enter a valid 5-digit ZIP code.";
+    return;
+  }
+
+  applyLocation.disabled = true;
+  locationStatus.textContent = "Looking up ZIP code...";
+
+  try {
+    const location = await resolveZipCode(zip);
+    setCurrentLocation(location);
+    loadWeather();
+    if (syncClient) {
+      syncClient.commit();
+    }
+  } catch {
+    locationStatus.textContent = "ZIP code was not found.";
+  } finally {
+    applyLocation.disabled = false;
+  }
+});
+
+zipInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyLocation.click();
+  }
+});
+
+weatherRefreshInput.addEventListener("change", () => {
+  weatherRefreshMinutes = sanitizeWeatherInterval(weatherRefreshInput.value);
+  weatherRefreshInput.value = weatherRefreshMinutes;
+  localStorage.setItem(WEATHER_REFRESH_KEY, String(weatherRefreshMinutes));
+  startWeatherRefresh();
+  if (syncClient) {
+    syncClient.commit();
+  }
+});
+
+barIntervalInput.addEventListener("change", () => {
+  barIntervalMinutes = sanitizeInterval(barIntervalInput.value);
+  barIntervalInput.value = barIntervalMinutes;
+  saveBarSettings();
+  startBarRotation();
+});
+
+barColorPickers.forEach((picker) => {
+  picker.addEventListener("input", () => {
+    const index = Number(picker.dataset.index);
+    if (!Number.isFinite(index) || !barColors[index]) return;
+    const normalized = normalizeHex(picker.value);
+    if (!normalized) return;
+    barColors[index].base = normalized;
+    barActiveIndex = 0;
+    saveBarSettings();
+    startBarRotation();
+  });
+});
+
+barColorToggles.forEach((toggle) => {
+  toggle.addEventListener("change", () => {
+    const index = Number(toggle.dataset.index);
+    if (!Number.isFinite(index) || !barColors[index]) return;
+    barColors[index].enabled = toggle.checked;
+    barActiveIndex = 0;
+    saveBarSettings();
+    startBarRotation();
+  });
+});
+
+logoPathInput.addEventListener("change", () => {
+  applyLogoSettings();
+});
+
+logoEnabledInput.addEventListener("change", () => {
+  applyLogoSettings();
+});
+
+logoPositionInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    applyLogoPosition();
+  });
+});
+
+weatherShiftStrengthInput.addEventListener("input", () => {
+  applyWeatherShiftSettings();
+});
+
+if (syncPushButton) {
+  syncPushButton.addEventListener("click", async () => {
+    if (!syncClient || !syncReady) {
+      setSyncStatus("Sync not configured.");
+      return;
+    }
+    await syncClient.commitNow();
+    setSyncStatus("Settings pushed.");
+  });
+}
+
+const settingSelect = document.getElementById("settingSelect");
+const settingSlider = document.getElementById("settingSlider");
+const settingValue = document.getElementById("settingValue");
+
+function clampValue(value, setting) {
+  const numeric = Number(value);
+  const safe = Number.isNaN(numeric) ? setting.defaultValue : numeric;
+  return Math.min(setting.max, Math.max(setting.min, safe));
+}
+
+function applySetting(setting, value) {
+  const safeValue = clampValue(value, setting);
+  document.documentElement.style.setProperty(setting.cssVar, `${safeValue}px`);
+  localStorage.setItem(setting.cssVar, safeValue);
+  if (syncClient) {
+    syncClient.commit();
+  }
+  return safeValue;
+}
+
+function getSettingValue(setting) {
+  const saved = localStorage.getItem(setting.cssVar);
+  if (saved === null) {
+    return setting.defaultValue;
+  }
+  return clampValue(saved, setting);
+}
+
+function setSyncStatus(message) {
+  if (!syncStatus) return;
+  syncStatus.textContent = message || "";
+  if (syncStatusTimer) {
+    clearTimeout(syncStatusTimer);
+    syncStatusTimer = null;
+  }
+  if (message) {
+    syncStatusTimer = setTimeout(() => {
+      syncStatus.textContent = "";
+    }, 2500);
+  }
+}
+
+function exportSyncState() {
+  const cssVars = {};
+  SETTINGS.forEach((setting) => {
+    cssVars[setting.cssVar] = getSettingValue(setting);
+  });
+
+  const selectedPosition = logoPositionInputs.find(input => input.checked);
+  const logoPosition = selectedPosition ? selectedPosition.value : "end";
+
+  return {
+    location: {
+      zip: currentZip,
+      lat: currentLat,
+      lon: currentLon,
+      label: currentLocationLabel
+    },
+    weatherRefreshMinutes,
+    barColors,
+    barIntervalMinutes,
+    logoPath: logoPathInput.value.trim(),
+    logoEnabled: logoEnabledInput.checked,
+    logoPosition,
+    weatherShiftStrength: sanitizeShiftStrength(weatherShiftStrengthInput.value),
+    cssVars
+  };
+}
+
+function applySyncState(state) {
+  if (!state || typeof state !== "object") return;
+
+  if (state.location && typeof state.location === "object") {
+    const syncedZip = normalizeZip(state.location.zip);
+    if (Number.isFinite(state.location.lat) && Number.isFinite(state.location.lon)) {
+      setCurrentLocation({
+        zip: syncedZip,
+        lat: state.location.lat,
+        lon: state.location.lon,
+        label: typeof state.location.label === "string" && state.location.label
+          ? state.location.label
+          : syncedZip
+            ? ""
+            : "synced coordinates"
+      });
+      loadWeather();
+    } else if (syncedZip) {
+      resolveZipCode(syncedZip)
+        .then((location) => {
+          setCurrentLocation(location);
+          loadWeather();
+        })
+        .catch(() => {
+          locationStatus.textContent = "Synced ZIP code was not found.";
+        });
+    }
+  }
+
+  if (state.weatherRefreshMinutes !== undefined) {
+    weatherRefreshMinutes = sanitizeWeatherInterval(state.weatherRefreshMinutes);
+    weatherRefreshInput.value = weatherRefreshMinutes;
+    localStorage.setItem(WEATHER_REFRESH_KEY, String(weatherRefreshMinutes));
+    startWeatherRefresh();
+  }
+
+  if (Array.isArray(state.barColors)) {
+    barColors = normalizeBarColors(state.barColors);
+  }
+
+  if (state.barIntervalMinutes !== undefined) {
+    barIntervalMinutes = sanitizeInterval(state.barIntervalMinutes);
+    barIntervalInput.value = barIntervalMinutes;
+  }
+
+  if (Array.isArray(state.barColors) || state.barIntervalMinutes !== undefined) {
+    saveBarSettings();
+    updateBarColorUI();
+    startBarRotation();
+  }
+
+  if (state.logoPath !== undefined) {
+    logoPathInput.value = state.logoPath;
+  }
+  if (state.logoEnabled !== undefined) {
+    logoEnabledInput.checked = Boolean(state.logoEnabled);
+  }
+  if (state.logoPosition !== undefined) {
+    logoPositionInputs.forEach((input) => {
+      input.checked = input.value === state.logoPosition;
+    });
+  }
+  if (
+    state.logoPath !== undefined ||
+    state.logoEnabled !== undefined ||
+    state.logoPosition !== undefined
+  ) {
+    applyLogoSettings();
+  }
+
+  if (state.weatherShiftStrength !== undefined) {
+    weatherShiftStrengthInput.value = sanitizeShiftStrength(state.weatherShiftStrength);
+  }
+  if (state.weatherShiftStrength !== undefined) {
+    applyWeatherShiftSettings();
+  }
+
+  if (state.cssVars && typeof state.cssVars === "object") {
+    SETTINGS.forEach((setting) => {
+      if (state.cssVars[setting.cssVar] === undefined) return;
+      applySetting(setting, state.cssVars[setting.cssVar]);
+    });
+    syncSlider(currentSetting());
+  }
+}
+
+function syncSlider(setting) {
+  settingSlider.min = setting.min;
+  settingSlider.max = setting.max;
+  const currentValue = getSettingValue(setting);
+  settingSlider.value = currentValue;
+  settingValue.textContent = `${currentValue}px`;
+}
+
+function currentSetting() {
+  return SETTINGS[Number(settingSelect.value)];
+}
+
+SETTINGS.forEach((setting, index) => {
+  const option = document.createElement("option");
+  option.value = String(index);
+  option.textContent = setting.label;
+  settingSelect.appendChild(option);
+
+  const savedValue = localStorage.getItem(setting.cssVar);
+  if (savedValue !== null) {
+    applySetting(setting, savedValue);
+  }
+});
+
+settingSelect.addEventListener("change", () => {
+  syncSlider(currentSetting());
+});
+
+settingSlider.addEventListener("input", () => {
+  const value = applySetting(currentSetting(), settingSlider.value);
+  settingValue.textContent = `${value}px`;
+});
+
+settingSelect.value = "0";
+syncSlider(currentSetting());
+
+applyScreenScale();
+window.addEventListener("resize", applyScreenScale);
+loadStoredLocation();
+setLocationInputs();
+loadBarSettings();
+loadLogoSettings();
+const storedRefresh = localStorage.getItem(WEATHER_REFRESH_KEY);
+weatherRefreshMinutes = sanitizeWeatherInterval(storedRefresh || WEATHER_REFRESH_DEFAULT);
+weatherRefreshInput.value = weatherRefreshMinutes;
+startWeatherRefresh();
+
+const storedShiftStrength = localStorage.getItem(SHIFT_STRENGTH_KEY) || "5";
+weatherShiftStrengthInput.value = sanitizeShiftStrength(storedShiftStrength);
+applyWeatherShiftSettings();
+
+if (window.beaconSync) {
+  syncClient = window.beaconSync.createClient({
+    scope: window.beaconIdentity?.buildSyncScope?.("secondary") || "secondary",
+    getState: exportSyncState,
+    applyState: applySyncState
+  });
+  syncClient.start().then((started) => {
+    syncReady = started;
+  });
+}
+
+async function initControlPlaneConfig() {
+  if (!window.beaconRuntimeConfig || typeof window.beaconRuntimeConfig.getSettingsAuthUrl !== "function") {
+    SETTINGS_AUTH_API = "";
+    return;
+  }
+  SETTINGS_AUTH_API = await window.beaconRuntimeConfig.getSettingsAuthUrl();
+}
+
+(async function bootSecondaryControlPlane() {
+  await initControlPlaneConfig();
+
+  if (IS_MODAL_HOST) {
+    requestSettingsOpen();
+  }
+})();
+
+window.addEventListener("beforeunload", () => {
+  if (weatherRefreshTimer) {
+    clearInterval(weatherRefreshTimer);
+    weatherRefreshTimer = null;
+  }
+  if (barRotationTimer) {
+    clearInterval(barRotationTimer);
+    barRotationTimer = null;
+  }
+  stopWeatherShift();
+});
+</script>
+
+</body>
+</html>
+
+

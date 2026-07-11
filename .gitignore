@@ -1,0 +1,12 @@
+.DS_Store
+Thumbs.db
+Desktop.ini
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.log
+*.tmp
+*.bak

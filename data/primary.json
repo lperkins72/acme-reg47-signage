@@ -1,0 +1,17 @@
+{
+  "rotationSeconds": 12,
+  "items": [
+    {
+      "headline": "Welcome to Beacon Digital Network",
+      "subhead": "Reliable, readable, kiosk-safe messaging"
+    },
+    {
+      "headline": "Safety First",
+      "subhead": "Stay alert. Follow posted guidance."
+    },
+    {
+      "headline": "Thank You for Visiting",
+      "subhead": "We appreciate your time."
+    }
+  ]
+}

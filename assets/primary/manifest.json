@@ -1,0 +1,65 @@
+{
+  "defaultDurationSeconds": 5,
+  "items": [
+    {
+      "src": "assets/primary/promo1.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo2.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo3.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo4.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo5.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo6.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo7.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo8.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo9.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo10.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo11.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo12.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo13.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo14.jpg",
+      "type": "image"
+    },
+    {
+      "src": "assets/primary/promo44.mp4",
+      "type": "video"
+    }
+  ]
+}

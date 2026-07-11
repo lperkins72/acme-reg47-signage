@@ -1,0 +1,1865 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Footer Zone</title>
+  <style>
+    :root {
+      --footer-bg: #020811;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background: var(--footer-bg);
+      color: #f4f8fd;
+    }
+
+    body.embedded-footer .mode-badge,
+    body.embedded-footer .open-settings,
+    body.embedded-footer .controller-copy {
+      display: none;
+    }
+
+    .footer-shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 45%),
+        linear-gradient(90deg, rgba(60, 143, 255, 0.08), transparent 16%, transparent 84%, rgba(255, 138, 76, 0.08)),
+        var(--footer-bg);
+    }
+
+    .footer-viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .controller-copy {
+      position: relative;
+      z-index: 4;
+      margin: 10px auto 0;
+      width: fit-content;
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(214, 225, 240, 0.14);
+      background: rgba(8, 14, 23, 0.72);
+      color: #dce7f5;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .static-layer,
+    .overlay-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .static-layer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 44px;
+      z-index: 1;
+      transform: translate(var(--shift-x, 0px), var(--shift-y, 0px));
+      transition: transform 1.6s ease-in-out;
+      will-change: transform;
+    }
+
+    .overlay-layer {
+      display: none;
+      z-index: 2;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .static-text,
+    .overlay-text {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(255, 255, 255, 0.08);
+      max-width: 100%;
+    }
+
+    .overlay-runner {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translate(0, -50%);
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      will-change: transform, opacity;
+    }
+
+    .overlay-image {
+      display: block;
+      width: auto;
+      max-width: none;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .mode-badge {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      z-index: 4;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(224, 235, 250, 0.15);
+      background: rgba(7, 12, 20, 0.55);
+      color: rgba(235, 242, 252, 0.84);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .open-settings {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      z-index: 5;
+      border: 1px solid rgba(221, 232, 247, 0.2);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(6, 10, 17, 0.72);
+      color: #edf4fd;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .open-settings:hover,
+    .modal-button:hover,
+    .tab-button:hover {
+      background: rgba(35, 49, 70, 0.96);
+    }
+
+    .settings-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: rgba(4, 7, 12, 0.72);
+      backdrop-filter: blur(6px);
+    }
+
+    .settings-modal.is-open {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(1120px, 96vw);
+      max-height: 90vh;
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(214, 225, 240, 0.14);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+        #0b121d;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+      padding: 22px;
+      color: #edf4fd;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      letter-spacing: 0.02em;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-button {
+      border: 1px solid rgba(214, 225, 240, 0.16);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(20, 30, 45, 0.9);
+      color: #edf4fd;
+      cursor: pointer;
+    }
+
+    .section-title {
+      margin: 22px 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #92a7c2;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px 16px;
+    }
+
+    .settings-grid label,
+    .settings-grid .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: #d2dcea;
+    }
+
+    .settings-grid input,
+    .settings-grid select,
+    .settings-grid textarea {
+      width: 100%;
+      border: 1px solid #29384a;
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #0f1824;
+      color: #f4f8fd;
+      font: inherit;
+    }
+
+    .settings-grid input[type="color"] {
+      min-height: 42px;
+      padding: 4px;
+    }
+
+    .settings-grid input[type="checkbox"] {
+      width: auto;
+      min-height: auto;
+      margin: 0;
+    }
+
+    .settings-grid textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    .field.full-span {
+      grid-column: 1 / -1;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding-top: 22px;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .color-grid label,
+    .palette-custom-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: #cfd9e8;
+    }
+
+    .palette-panel,
+    .summary-card,
+    .tab-panel {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(214, 225, 240, 0.12);
+      background: rgba(13, 21, 34, 0.72);
+    }
+
+    .palette-target,
+    .panel-summary,
+    .hint,
+    .summary-card span,
+    .sync-indicator {
+      color: #b7c6d9;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .palette-swatches {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .palette-swatch {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: stretch;
+    }
+
+    .palette-button {
+      height: 42px;
+      border: 1px solid rgba(214, 225, 240, 0.16);
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .palette-swatch span {
+      font-size: 11px;
+      color: #98abc3;
+      text-align: center;
+    }
+
+    .palette-custom-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .sequence-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #dce7f5;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .tab-button {
+      min-width: 210px;
+      border: 1px solid rgba(214, 225, 240, 0.14);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(13, 21, 34, 0.64);
+      color: #edf4fd;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .tab-button.is-active {
+      background: rgba(31, 50, 77, 0.9);
+      border-color: rgba(132, 184, 255, 0.38);
+      box-shadow: inset 0 0 0 1px rgba(132, 184, 255, 0.2);
+    }
+
+    .tab-title {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .tab-meta {
+      display: block;
+      font-size: 12px;
+      color: #a9bbd3;
+      line-height: 1.35;
+    }
+
+    .tab-panel {
+      display: none;
+      padding: 16px;
+    }
+
+    .tab-panel.is-active {
+      display: block;
+    }
+
+    .sync-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding-top: 22px;
+    }
+
+    .sync-led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #6b2f3f;
+      box-shadow: 0 0 8px rgba(107, 47, 63, 0.8);
+      flex: 0 0 auto;
+    }
+
+    .sync-led.is-ok {
+      background: #2fb36b;
+      box-shadow: 0 0 8px rgba(47, 179, 107, 0.9);
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="footer-shell">
+    <div class="mode-badge" id="modeBadge">Footer State</div>
+    <button class="open-settings" id="openSettings" type="button">Footer Settings</button>
+    <div class="controller-copy">Footer controls with shared secondary + footer overlays</div>
+    <div class="footer-viewport">
+      <div class="static-layer" id="staticLayer"></div>
+      <div class="overlay-layer" id="overlayLayer"></div>
+    </div>
+  </div>
+
+  <div class="settings-modal" id="settingsModal" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2>Footer Settings</h2>
+        <div class="modal-actions">
+          <button class="modal-button" id="resetButton" type="button">Reset Footer</button>
+          <button class="modal-button" id="closeButton" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="section-title">Footer Base</div>
+      <div class="settings-grid">
+        <div class="field">
+          <div class="toggle-row">
+            <input id="staticEnabledInput" type="checkbox">
+            <span>Show footer base text</span>
+          </div>
+        </div>
+
+        <label>Color Change Interval (minutes)
+          <input id="staticColorIntervalInput" type="number" min="0.1" max="720" step="0.1">
+        </label>
+
+        <div class="field">
+          <div class="toggle-row">
+            <input id="pixelShiftEnabledInput" type="checkbox">
+            <span>Enable pixel shift on static text</span>
+          </div>
+        </div>
+
+        <label>Pixel Shift Strength (px)
+          <input id="pixelShiftStrengthInput" type="number" min="1" max="8" step="1">
+        </label>
+
+        <label class="field full-span">Footer Name / Message
+          <textarea id="staticTextInput"></textarea>
+        </label>
+
+        <label>Font Family
+          <select id="staticFontFamilyInput">
+            <option value="Trebuchet MS">Trebuchet MS</option>
+            <option value="Arial">Arial</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Impact">Impact</option>
+            <option value="Courier New">Courier New</option>
+          </select>
+        </label>
+
+        <label>Font Size (px)
+          <input id="staticFontSizeInput" type="number" min="16" max="72" step="1">
+        </label>
+
+        <label>Font Weight
+          <select id="staticFontWeightInput">
+            <option value="400">400</option>
+            <option value="500">500</option>
+            <option value="600">600</option>
+            <option value="700">700</option>
+            <option value="800">800</option>
+          </select>
+        </label>
+
+        <label>Letter Spacing (em)
+          <input id="staticLetterSpacingInput" type="number" min="0" max="0.4" step="0.01">
+        </label>
+
+        <label>Background Color
+          <input id="backgroundColorInput" type="color">
+        </label>
+
+        <label>Auto Reload (minutes, 0 = off)
+          <input id="autoReloadMinutesInput" type="number" min="0" max="1440" step="1">
+        </label>
+
+        <div class="field">
+          <div class="sync-indicator">
+            <span class="sync-led" id="syncLed" aria-hidden="true"></span>
+            <span id="syncLabel">Sync not configured</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Static Color Presets</div>
+      <div class="color-grid" id="staticColorGrid"></div>
+
+      <div class="section-title">Region Heartbeat Policy</div>
+      <div class="settings-grid">
+        <label>Day Start Time
+          <input id="heartbeatDayStartInput" type="time" step="60">
+        </label>
+
+        <label>Day End Time
+          <input id="heartbeatDayEndInput" type="time" step="60">
+        </label>
+
+        <label>Day Interval (seconds)
+          <input id="heartbeatActiveIntervalSecondsInput" type="number" min="60" max="86400" step="60">
+        </label>
+
+        <label>Night Interval (seconds)
+          <input id="heartbeatIdleIntervalSecondsInput" type="number" min="60" max="86400" step="60">
+        </label>
+
+        <label>Day Offline Threshold (minutes)
+          <input id="heartbeatDayOfflineThresholdMinutesInput" type="number" min="5" max="1440" step="1">
+        </label>
+
+        <label>Night Offline Threshold (minutes)
+          <input id="heartbeatNightOfflineThresholdMinutesInput" type="number" min="5" max="1440" step="1">
+        </label>
+
+        <div class="field full-span">
+          <div class="hint">These heartbeat settings apply to all screens in this region. Time window uses America/Chicago.</div>
+        </div>
+      </div>
+
+      <div class="section-title">Shared Color Palette</div>
+      <div class="palette-panel">
+        <div class="palette-target" id="paletteTargetLabel">Click any color field, then choose a preset or custom swatch.</div>
+        <div class="palette-swatches" id="palettePresetSwatches"></div>
+        <div class="palette-custom-grid" id="paletteCustomGrid"></div>
+      </div>
+
+      <div class="section-title">Overlay Sequence</div>
+      <div class="sequence-summary" id="sequenceSummary"></div>
+
+      <div class="section-title">Overlay Slots</div>
+      <div class="tabs" id="overlayTabs"></div>
+      <div id="overlayPanels"></div>
+
+      <div class="hint">
+        Overlay 1 is the repeating anchor. Overlay 2 starts a set number of seconds after overlay 1 begins, and overlay 3 starts a set number of seconds after overlay 2 begins.
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/bdn-identity.js"></script>
+  <script src="assets/bdn-content-paths.js"></script>
+  <script src="assets/bdn-runtime-config.js"></script>
+  <script src="assets/sync.js"></script>
+  <script>
+    window.beaconIdentity?.applyIdentityDataset(document.documentElement);
+
+    const DATA_URL = "data/footer.json";
+    const ASSET_MANIFEST_URL = "assets/footer/manifest.json";
+    const STORAGE_KEY = "bdn_next_footer_state_v1";
+    const AUTO_RELOAD_STORAGE_KEY = "beacon_auto_reload_minutes";
+    const HEARTBEAT_POLICY_STORAGE_KEY = "bdn_region_heartbeat_policy_v1";
+    const LEGACY_BRAND_KEY = "footer_brand_text";
+    const LEGACY_SHIFT_ENABLED_KEY = "footer_shift_enabled";
+    const LEGACY_SHIFT_STRENGTH_KEY = "footer_shift_strength";
+    const DEFAULT_BRAND_NAME = "Beacon Digital Network";
+    const params = new URLSearchParams(window.location.search);
+    const IS_MODAL_HOST = params.get("modalHost") === "1";
+    const IS_EMBEDDED = window.self !== window.top;
+    const LOCAL_OVERLAY_PREVIEW = IS_MODAL_HOST || !IS_EMBEDDED;
+    const SHIFT_INTERVAL_MS = 60000;
+    const SHIFT_OFFSETS = [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 0, y: -1 }
+    ];
+
+    const DEFAULT_ASSET_OPTIONS = [
+      { label: "Beacon Logo PNG", path: "assets/footer/beacon-logo.png" },
+      { label: "Discount Scroll PNG", path: "assets/footer/discount scroll.png" },
+      { label: "Ghost Comet SVG", path: "assets/footer/ghost-comet.svg" },
+      { label: "Solid Banner SVG", path: "assets/footer/solid-banner.svg" }
+    ];
+
+    const SHARED_PRESET_COLORS = [
+      "#f3f7ff",
+      "#7FDBFF",
+      "#FFD166",
+      "#FF8A5B",
+      "#9BFFB1",
+      "#F4A6FF",
+      "#102033",
+      "#1f3a5f"
+    ];
+
+    const DEFAULT_OVERLAY_BASE = {
+      enabled: false,
+      type: "none",
+      animation: "scroll",
+      delaySeconds: 8,
+      repeatMinutes: 2,
+      direction: "rtl",
+      travelSeconds: 8,
+      centerPauseSeconds: 2,
+      screenTimeSeconds: 4,
+      fadeSeconds: 3,
+      text: "",
+      fontFamily: "Impact",
+      fontSizePx: 44,
+      fontWeight: 700,
+      letterSpacingEm: 0.03,
+      textColor: "#fff1dc",
+      textBackgroundEnabled: false,
+      textBackgroundColor: "#102033",
+      imagePath: "assets/footer/ghost-comet.svg",
+      imageStyle: "ghost",
+      imageHeightPx: 56,
+      imageOpacity: 0.42
+    };
+
+    const DEFAULT_HEARTBEAT_POLICY = {
+      dayStartTime: "08:00",
+      dayEndTime: "23:00",
+      activeIntervalSeconds: 300,
+      idleIntervalSeconds: 3600,
+      dayOfflineThresholdMinutes: 20,
+      nightOfflineThresholdMinutes: 90,
+      timezone: "America/Chicago"
+    };
+
+    const DEFAULT_STATE = {
+      staticEnabled: true,
+      staticText: DEFAULT_BRAND_NAME,
+      staticFontFamily: "Trebuchet MS",
+      staticFontSizePx: 30,
+      staticFontWeight: 700,
+      staticLetterSpacingEm: 0.08,
+      staticColors: ["#f3f7ff", "#7FDBFF", "#FFD166", "#FF8A5B", "#9BFFB1", "#F4A6FF"],
+      sharedCustomColors: ["#ffffff", "#0f1824", "#ffcc33", "#66d9ff"],
+      staticColorIntervalMinutes: 5,
+      backgroundColor: "#020811",
+      pixelShiftEnabled: true,
+      pixelShiftStrengthPx: 4,
+      autoReloadMinutes: 0,
+      heartbeat: { ...DEFAULT_HEARTBEAT_POLICY },
+      overlays: [
+        { ...DEFAULT_OVERLAY_BASE, enabled: false, type: "none", delaySeconds: 0 },
+        { ...DEFAULT_OVERLAY_BASE, enabled: false, type: "text", direction: "ltr", delaySeconds: 10, text: "Region message placeholder" },
+        { ...DEFAULT_OVERLAY_BASE, enabled: false, type: "image", delaySeconds: 6, imagePath: "assets/footer/solid-banner.svg", imageStyle: "solid", imageHeightPx: 52, imageOpacity: 1 }
+      ]
+    };
+
+    const bodyEl = document.body;
+    const modeBadgeEl = document.getElementById("modeBadge");
+    const overlayTabsEl = document.getElementById("overlayTabs");
+    const overlayPanelsEl = document.getElementById("overlayPanels");
+    const staticColorGridEl = document.getElementById("staticColorGrid");
+    const paletteCustomGridEl = document.getElementById("paletteCustomGrid");
+    const staticLayerEl = document.getElementById("staticLayer");
+    const overlayLayerEl = document.getElementById("overlayLayer");
+    const modalEl = document.getElementById("settingsModal");
+    const sequenceSummaryEl = document.getElementById("sequenceSummary");
+    const palettePresetSwatchesEl = document.getElementById("palettePresetSwatches");
+    const paletteTargetLabelEl = document.getElementById("paletteTargetLabel");
+    const openSettingsButton = document.getElementById("openSettings");
+    const closeButton = document.getElementById("closeButton");
+    const resetButton = document.getElementById("resetButton");
+    const autoReloadMinutesInput = document.getElementById("autoReloadMinutesInput");
+    const syncLed = document.getElementById("syncLed");
+    const syncLabel = document.getElementById("syncLabel");
+    const heartbeatInputs = {
+      dayStartTime: document.getElementById("heartbeatDayStartInput"),
+      dayEndTime: document.getElementById("heartbeatDayEndInput"),
+      activeIntervalSeconds: document.getElementById("heartbeatActiveIntervalSecondsInput"),
+      idleIntervalSeconds: document.getElementById("heartbeatIdleIntervalSecondsInput"),
+      dayOfflineThresholdMinutes: document.getElementById("heartbeatDayOfflineThresholdMinutesInput"),
+      nightOfflineThresholdMinutes: document.getElementById("heartbeatNightOfflineThresholdMinutesInput")
+    };
+
+    const staticInputs = {
+      enabled: document.getElementById("staticEnabledInput"),
+      text: document.getElementById("staticTextInput"),
+      fontFamily: document.getElementById("staticFontFamilyInput"),
+      fontSizePx: document.getElementById("staticFontSizeInput"),
+      fontWeight: document.getElementById("staticFontWeightInput"),
+      letterSpacingEm: document.getElementById("staticLetterSpacingInput"),
+      colorIntervalMinutes: document.getElementById("staticColorIntervalInput"),
+      backgroundColor: document.getElementById("backgroundColorInput"),
+      pixelShiftEnabled: document.getElementById("pixelShiftEnabledInput"),
+      pixelShiftStrengthPx: document.getElementById("pixelShiftStrengthInput"),
+      autoReloadMinutes: autoReloadMinutesInput
+    };
+
+    let staticColorInputs = [];
+    let customPaletteInputs = [];
+    let overlayBindings = [];
+    let tabButtons = [];
+    let tabPanels = [];
+    let state = structuredClone(DEFAULT_STATE);
+    let assetOptions = [...DEFAULT_ASSET_OPTIONS];
+    let activeTabIndex = 0;
+    let colorTimer = null;
+    let colorIndex = 0;
+    let shiftTimer = null;
+    let shiftIndex = 0;
+    let anchorIntervalId = null;
+    let pendingTimers = [];
+    let activeOverlayTokens = [0, 0, 0];
+    let overlayActiveFlags = [false, false, false];
+    let currentColorTarget = null;
+    let syncClient = null;
+    let baseBrandName = DEFAULT_BRAND_NAME;
+
+    if (!IS_MODAL_HOST && IS_EMBEDDED) {
+      bodyEl.classList.add("embedded-footer");
+    }
+
+    function buildStaticColorInputs() {
+      staticColorGridEl.innerHTML = "";
+      staticColorInputs = Array.from({ length: 6 }, (_, index) => {
+        const label = document.createElement("label");
+        label.innerHTML = `Preset ${index + 1}<input class="static-color-input" data-index="${index}" type="color">`;
+        staticColorGridEl.appendChild(label);
+        return label.querySelector("input");
+      });
+    }
+
+    function buildPaletteCustomInputs() {
+      paletteCustomGridEl.innerHTML = "";
+      customPaletteInputs = Array.from({ length: 4 }, (_, index) => {
+        const label = document.createElement("label");
+        label.innerHTML = `Custom ${index + 1}<input class="palette-custom-input" id="customPalette${index}" type="color">`;
+        paletteCustomGridEl.appendChild(label);
+        return label.querySelector("input");
+      });
+    }
+
+    function overlayPanelMarkup(index) {
+      const titleIndex = index + 1;
+      const startLabel = index === 0 ? "Start Every (minutes)" : `Start After Overlay ${index} (seconds)`;
+      const repeatField = index === 0
+        ? `<label>Start Every (minutes)<input data-field="repeatMinutes" type="number" min="0.1" max="720" step="0.1"></label>`
+        : `<label>${startLabel}<input data-field="delaySeconds" type="number" min="0" max="600" step="0.5"></label>`;
+      return `
+        <div class="tab-panel" data-panel="${index}">
+          <div class="panel-summary" data-role="panel-summary"></div>
+          <div class="settings-grid">
+            <div class="field">
+              <div class="toggle-row">
+                <input data-field="enabled" type="checkbox">
+                <span>Enable overlay ${titleIndex}</span>
+              </div>
+            </div>
+            <label>Content Type
+              <select data-field="type">
+                <option value="none">None</option>
+                <option value="image">Image</option>
+                <option value="text">Text</option>
+              </select>
+            </label>
+            <label>Animation
+              <select data-field="animation">
+                <option value="scroll">Scroll</option>
+                <option value="fade">Fade In / Fade Out</option>
+              </select>
+            </label>
+            ${repeatField}
+            <div class="overlay-scroll-fields" data-role="scroll-fields">
+              <div class="settings-grid">
+                <label>Scroll Side
+                  <select data-field="direction">
+                    <option value="rtl">Right to Left</option>
+                    <option value="ltr">Left to Right</option>
+                  </select>
+                </label>
+                <label>Travel Time (seconds)
+                  <input data-field="travelSeconds" type="number" min="1" max="120" step="0.5">
+                </label>
+                <label>Center Pause (seconds)
+                  <input data-field="centerPauseSeconds" type="number" min="0" max="120" step="0.5">
+                </label>
+              </div>
+            </div>
+            <div class="overlay-fade-fields" data-role="fade-fields">
+              <div class="settings-grid">
+                <label>Screen Play Time (seconds)
+                  <input data-field="screenTimeSeconds" type="number" min="0" max="300" step="0.5">
+                </label>
+                <label>Fade In / Out Time (seconds)
+                  <input data-field="fadeSeconds" type="number" min="0" max="120" step="0.5">
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="overlay-text-fields" data-role="text-fields">
+            <div class="section-title">Overlay ${titleIndex} Text</div>
+            <div class="settings-grid">
+              <label class="field full-span">Message
+                <textarea data-field="text"></textarea>
+              </label>
+              <label>Font Family
+                <select data-field="fontFamily">
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Courier New">Courier New</option>
+                </select>
+              </label>
+              <label>Font Size (px)
+                <input data-field="fontSizePx" type="number" min="16" max="96" step="1">
+              </label>
+              <label>Font Weight
+                <select data-field="fontWeight">
+                  <option value="400">400</option>
+                  <option value="500">500</option>
+                  <option value="600">600</option>
+                  <option value="700">700</option>
+                  <option value="800">800</option>
+                </select>
+              </label>
+              <label>Letter Spacing (em)
+                <input data-field="letterSpacingEm" type="number" min="0" max="0.4" step="0.01">
+              </label>
+              <label>Text Color
+                <input data-field="textColor" type="color">
+              </label>
+              <div class="field">
+                <div class="toggle-row">
+                  <input data-field="textBackgroundEnabled" type="checkbox">
+                  <span>Use text background</span>
+                </div>
+              </div>
+              <label>Background Color
+                <input data-field="textBackgroundColor" type="color">
+              </label>
+            </div>
+          </div>
+
+          <div class="overlay-image-fields" data-role="image-fields">
+            <div class="section-title">Overlay ${titleIndex} Image</div>
+            <div class="settings-grid">
+              <label>Footer Asset
+                <select data-field="imagePreset"></select>
+              </label>
+              <label>Image Path
+                <input data-field="imagePath" type="text">
+              </label>
+              <label>Image Style
+                <select data-field="imageStyle">
+                  <option value="ghost">Ghost</option>
+                  <option value="solid">Solid</option>
+                </select>
+              </label>
+              <label>Image Height (px)
+                <input data-field="imageHeightPx" type="number" min="20" max="140" step="1">
+              </label>
+              <label>Image Opacity
+                <input data-field="imageOpacity" type="number" min="0.05" max="1" step="0.01">
+              </label>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function buildOverlayControls() {
+      overlayTabsEl.innerHTML = "";
+      overlayPanelsEl.innerHTML = "";
+      overlayBindings = [];
+
+      for (let index = 0; index < 3; index += 1) {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "tab-button";
+        tab.dataset.tab = String(index);
+        tab.innerHTML = `<span class="tab-title">Overlay ${index + 1}</span><span class="tab-meta"></span>`;
+        overlayTabsEl.appendChild(tab);
+        overlayPanelsEl.insertAdjacentHTML("beforeend", overlayPanelMarkup(index));
+      }
+
+      tabButtons = Array.from(document.querySelectorAll(".tab-button"));
+      tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
+
+      overlayBindings = tabPanels.map((panel, index) => ({
+        index,
+        panel,
+        tabButton: tabButtons[index],
+        tabMeta: tabButtons[index].querySelector(".tab-meta"),
+        panelSummary: panel.querySelector('[data-role="panel-summary"]'),
+        scrollFields: panel.querySelector('[data-role="scroll-fields"]'),
+        fadeFields: panel.querySelector('[data-role="fade-fields"]'),
+        textFields: panel.querySelector('[data-role="text-fields"]'),
+        imageFields: panel.querySelector('[data-role="image-fields"]'),
+        enabled: panel.querySelector('[data-field="enabled"]'),
+        type: panel.querySelector('[data-field="type"]'),
+        animation: panel.querySelector('[data-field="animation"]'),
+        repeatMinutes: panel.querySelector('[data-field="repeatMinutes"]'),
+        delaySeconds: panel.querySelector('[data-field="delaySeconds"]'),
+        direction: panel.querySelector('[data-field="direction"]'),
+        travelSeconds: panel.querySelector('[data-field="travelSeconds"]'),
+        centerPauseSeconds: panel.querySelector('[data-field="centerPauseSeconds"]'),
+        screenTimeSeconds: panel.querySelector('[data-field="screenTimeSeconds"]'),
+        fadeSeconds: panel.querySelector('[data-field="fadeSeconds"]'),
+        text: panel.querySelector('[data-field="text"]'),
+        fontFamily: panel.querySelector('[data-field="fontFamily"]'),
+        fontSizePx: panel.querySelector('[data-field="fontSizePx"]'),
+        fontWeight: panel.querySelector('[data-field="fontWeight"]'),
+        letterSpacingEm: panel.querySelector('[data-field="letterSpacingEm"]'),
+        textColor: panel.querySelector('[data-field="textColor"]'),
+        textBackgroundEnabled: panel.querySelector('[data-field="textBackgroundEnabled"]'),
+        textBackgroundColor: panel.querySelector('[data-field="textBackgroundColor"]'),
+        imagePreset: panel.querySelector('[data-field="imagePreset"]'),
+        imagePath: panel.querySelector('[data-field="imagePath"]'),
+        imageStyle: panel.querySelector('[data-field="imageStyle"]'),
+        imageHeightPx: panel.querySelector('[data-field="imageHeightPx"]'),
+        imageOpacity: panel.querySelector('[data-field="imageOpacity"]')
+      }));
+    }
+
+    function clampNumber(value, min, max, fallback) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+      return Math.min(max, Math.max(min, numeric));
+    }
+
+    function normalizeTimeString(value, fallback) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
+      if (!match) return fallback;
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return fallback;
+      }
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function normalizeHeartbeatPolicy(rawPolicy) {
+      const next = { ...DEFAULT_HEARTBEAT_POLICY, ...(rawPolicy || {}) };
+      const legacyOfflineThresholdMinutes = clampNumber(
+        next.offlineThresholdMinutes,
+        5,
+        1440,
+        DEFAULT_HEARTBEAT_POLICY.nightOfflineThresholdMinutes
+      );
+      return {
+        dayStartTime: normalizeTimeString(next.dayStartTime, DEFAULT_HEARTBEAT_POLICY.dayStartTime),
+        dayEndTime: normalizeTimeString(next.dayEndTime, DEFAULT_HEARTBEAT_POLICY.dayEndTime),
+        activeIntervalSeconds: clampNumber(next.activeIntervalSeconds, 60, 86400, DEFAULT_HEARTBEAT_POLICY.activeIntervalSeconds),
+        idleIntervalSeconds: clampNumber(next.idleIntervalSeconds, 60, 86400, DEFAULT_HEARTBEAT_POLICY.idleIntervalSeconds),
+        dayOfflineThresholdMinutes: clampNumber(
+          next.dayOfflineThresholdMinutes,
+          5,
+          1440,
+          legacyOfflineThresholdMinutes
+        ),
+        nightOfflineThresholdMinutes: clampNumber(
+          next.nightOfflineThresholdMinutes,
+          5,
+          1440,
+          legacyOfflineThresholdMinutes
+        ),
+        timezone: String(next.timezone || DEFAULT_HEARTBEAT_POLICY.timezone).trim() || DEFAULT_HEARTBEAT_POLICY.timezone
+      };
+    }
+
+    function normalizeColorList(colors) {
+      const source = Array.isArray(colors) ? colors.slice(0, 6) : [];
+      return DEFAULT_STATE.staticColors.map((fallback, index) => {
+        const candidate = source[index];
+        return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(candidate || "")) ? candidate : fallback;
+      });
+    }
+
+    function normalizeCustomColors(colors) {
+      const source = Array.isArray(colors) ? colors.slice(0, 4) : [];
+      return DEFAULT_STATE.sharedCustomColors.map((fallback, index) => {
+        const candidate = source[index];
+        return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(candidate || "")) ? candidate : fallback;
+      });
+    }
+
+    function normalizeOverlay(rawOverlay, index) {
+      const defaults = DEFAULT_STATE.overlays[index] || DEFAULT_OVERLAY_BASE;
+      const next = { ...DEFAULT_OVERLAY_BASE, ...defaults, ...(rawOverlay || {}) };
+      if (next.type === "scroll-text") next.type = "text";
+      if (next.type === "scroll-image") next.type = "image";
+      next.enabled = Boolean(next.enabled);
+      next.type = ["none", "text", "image"].includes(next.type) ? next.type : defaults.type;
+      next.animation = ["scroll", "fade"].includes(next.animation) ? next.animation : defaults.animation;
+      next.delaySeconds = clampNumber(next.delaySeconds, 0, 600, defaults.delaySeconds);
+      next.repeatMinutes = clampNumber(next.repeatMinutes, 0.1, 720, defaults.repeatMinutes);
+      next.direction = ["rtl", "ltr"].includes(next.direction) ? next.direction : defaults.direction;
+      next.travelSeconds = clampNumber(next.travelSeconds, 1, 120, defaults.travelSeconds);
+      next.centerPauseSeconds = clampNumber(next.centerPauseSeconds, 0, 120, defaults.centerPauseSeconds);
+      next.screenTimeSeconds = clampNumber(next.screenTimeSeconds, 0, 300, defaults.screenTimeSeconds);
+      next.fadeSeconds = clampNumber(next.fadeSeconds, 0, 120, defaults.fadeSeconds);
+      next.text = String(next.text || defaults.text);
+      next.fontFamily = String(next.fontFamily || defaults.fontFamily);
+      next.fontSizePx = clampNumber(next.fontSizePx, 16, 96, defaults.fontSizePx);
+      next.fontWeight = clampNumber(next.fontWeight, 400, 800, defaults.fontWeight);
+      next.letterSpacingEm = clampNumber(next.letterSpacingEm, 0, 0.4, defaults.letterSpacingEm);
+      next.textColor = String(next.textColor || defaults.textColor);
+      next.textBackgroundEnabled = Boolean(next.textBackgroundEnabled);
+      next.textBackgroundColor = String(next.textBackgroundColor || defaults.textBackgroundColor);
+      next.imagePath = String(next.imagePath || defaults.imagePath);
+      next.imageStyle = ["ghost", "solid"].includes(next.imageStyle) ? next.imageStyle : defaults.imageStyle;
+      next.imageHeightPx = clampNumber(next.imageHeightPx, 20, 140, defaults.imageHeightPx);
+      next.imageOpacity = clampNumber(next.imageOpacity, 0.05, 1, defaults.imageOpacity);
+      return next;
+    }
+
+    function normalizeState(raw) {
+      const next = { ...DEFAULT_STATE, ...(raw || {}) };
+      next.staticEnabled = Boolean(next.staticEnabled);
+      next.staticText = String(next.staticText || baseBrandName || DEFAULT_STATE.staticText);
+      next.staticFontFamily = String(next.staticFontFamily || DEFAULT_STATE.staticFontFamily);
+      next.staticFontSizePx = clampNumber(next.staticFontSizePx, 16, 72, DEFAULT_STATE.staticFontSizePx);
+      next.staticFontWeight = clampNumber(next.staticFontWeight, 400, 800, DEFAULT_STATE.staticFontWeight);
+      next.staticLetterSpacingEm = clampNumber(next.staticLetterSpacingEm, 0, 0.4, DEFAULT_STATE.staticLetterSpacingEm);
+      next.staticColors = normalizeColorList(next.staticColors);
+      next.sharedCustomColors = normalizeCustomColors(next.sharedCustomColors);
+      next.staticColorIntervalMinutes = clampNumber(next.staticColorIntervalMinutes, 0.1, 720, DEFAULT_STATE.staticColorIntervalMinutes);
+      next.backgroundColor = String(next.backgroundColor || DEFAULT_STATE.backgroundColor);
+      next.pixelShiftEnabled = Boolean(next.pixelShiftEnabled);
+      next.pixelShiftStrengthPx = clampNumber(next.pixelShiftStrengthPx, 1, 8, DEFAULT_STATE.pixelShiftStrengthPx);
+      next.autoReloadMinutes = clampNumber(next.autoReloadMinutes, 0, 1440, DEFAULT_STATE.autoReloadMinutes);
+      next.heartbeat = normalizeHeartbeatPolicy(next.heartbeat);
+      const overlaySource = Array.isArray(next.overlays) ? next.overlays : [];
+      next.overlays = Array.from({ length: 3 }, (_, index) => normalizeOverlay(overlaySource[index], index));
+      return next;
+    }
+
+    async function loadInitialState() {
+      let fileState = {};
+      try {
+        const result = await window.beaconContentPaths.fetchFirstJson(DATA_URL, { cache: "no-store" });
+        fileState = result.json;
+      } catch {}
+
+      baseBrandName = typeof fileState.name === "string" && fileState.name.trim()
+        ? fileState.name.trim()
+        : DEFAULT_BRAND_NAME;
+      if (typeof fileState.name === "string" && !fileState.staticText) {
+        fileState.staticText = fileState.name;
+      }
+
+      let localState = {};
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) localState = JSON.parse(stored);
+      } catch {}
+
+      if (localState.heartbeat === undefined) {
+        try {
+          const storedHeartbeat = localStorage.getItem(HEARTBEAT_POLICY_STORAGE_KEY);
+          if (storedHeartbeat) {
+            localState.heartbeat = JSON.parse(storedHeartbeat);
+          }
+        } catch {}
+      }
+
+      const legacyState = {};
+      const legacyBrand = localStorage.getItem(LEGACY_BRAND_KEY);
+      if (legacyBrand && localState.staticText === undefined) legacyState.staticText = legacyBrand;
+      const legacyShiftEnabled = localStorage.getItem(LEGACY_SHIFT_ENABLED_KEY);
+      if (legacyShiftEnabled !== null && localState.pixelShiftEnabled === undefined) legacyState.pixelShiftEnabled = legacyShiftEnabled === "true";
+      const legacyShiftStrength = localStorage.getItem(LEGACY_SHIFT_STRENGTH_KEY);
+      if (legacyShiftStrength !== null && localState.pixelShiftStrengthPx === undefined) legacyState.pixelShiftStrengthPx = legacyShiftStrength;
+      const legacyReload = localStorage.getItem(AUTO_RELOAD_STORAGE_KEY);
+      if (legacyReload !== null && localState.autoReloadMinutes === undefined) legacyState.autoReloadMinutes = legacyReload;
+
+      state = normalizeState({ ...fileState, ...legacyState, ...localState });
+    }
+
+    async function loadAssetManifest() {
+      try {
+        const result = await window.beaconContentPaths.fetchFirstJson(ASSET_MANIFEST_URL, { cache: "no-store" });
+        const json = result.json;
+        const assets = Array.isArray(json.assets) ? json.assets : [];
+        const normalized = assets
+          .map((asset) => ({
+            label: String(asset.label || asset.path || "").trim(),
+            path: String(asset.path || "").trim()
+          }))
+          .filter((asset) => asset.label && asset.path);
+        if (normalized.length) assetOptions = normalized;
+      } catch {}
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(AUTO_RELOAD_STORAGE_KEY, String(state.autoReloadMinutes));
+      localStorage.setItem(HEARTBEAT_POLICY_STORAGE_KEY, JSON.stringify(state.heartbeat));
+    }
+
+    function pushAutoReloadToShell() {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({ type: "beacon-auto-reload", minutes: state.autoReloadMinutes }, "*");
+    }
+
+    function pushHeartbeatPolicyToShell() {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({
+        type: "beacon-heartbeat-policy",
+        policy: JSON.parse(JSON.stringify(state.heartbeat))
+      }, "*");
+    }
+
+    function updateSyncIndicator(status) {
+      if (status && status.connected) {
+        syncLed.classList.add("is-ok");
+        syncLabel.textContent = "Sync online";
+        return;
+      }
+      syncLed.classList.remove("is-ok");
+      syncLabel.textContent = status && status.configured ? "Sync offline" : "Sync not configured";
+    }
+
+    function updatePaletteTargetLabel() {
+      if (!currentColorTarget) {
+        paletteTargetLabelEl.textContent = "Click any color field, then choose a preset or custom swatch.";
+        return;
+      }
+      const label = currentColorTarget.closest("label");
+      const fieldName = label ? label.childNodes[0]?.textContent?.trim() : currentColorTarget.id;
+      paletteTargetLabelEl.textContent = `Active color field: ${fieldName || currentColorTarget.id}`;
+    }
+
+    function applyPaletteColor(color) {
+      if (!currentColorTarget) return;
+      currentColorTarget.value = color;
+      currentColorTarget.dispatchEvent(new Event("input", { bubbles: true }));
+      currentColorTarget.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function renderSharedPalette() {
+      palettePresetSwatchesEl.replaceChildren();
+      const combined = [
+        ...SHARED_PRESET_COLORS.map((color, index) => ({ label: `Preset ${index + 1}`, color })),
+        ...state.sharedCustomColors.map((color, index) => ({ label: `Custom ${index + 1}`, color }))
+      ];
+      combined.forEach((entry) => {
+        const wrap = document.createElement("div");
+        wrap.className = "palette-swatch";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "palette-button";
+        button.style.background = entry.color;
+        button.title = `${entry.label}: ${entry.color}`;
+        button.addEventListener("click", () => applyPaletteColor(entry.color));
+        const text = document.createElement("span");
+        text.textContent = entry.label;
+        wrap.append(button, text);
+        palettePresetSwatchesEl.appendChild(wrap);
+      });
+      customPaletteInputs.forEach((input, index) => {
+        input.value = state.sharedCustomColors[index];
+      });
+      updatePaletteTargetLabel();
+    }
+
+    function populateAssetOptions(select, selectedPath) {
+      if (!select) return;
+      select.replaceChildren();
+      assetOptions.forEach((asset) => {
+        const option = document.createElement("option");
+        option.value = asset.path;
+        option.textContent = asset.label;
+        select.appendChild(option);
+      });
+      const hasSelected = assetOptions.some((asset) => asset.path === selectedPath);
+      if (!hasSelected && selectedPath) {
+        const option = document.createElement("option");
+        option.value = selectedPath;
+        option.textContent = `Custom Path: ${selectedPath}`;
+        select.appendChild(option);
+      }
+      select.value = hasSelected || selectedPath ? selectedPath : assetOptions[0]?.path || "";
+    }
+
+    function overlayTypeLabel(type) {
+      if (type === "image") return "Image";
+      if (type === "text") return "Text";
+      return "Off";
+    }
+
+    function overlayAnimationLabel(animation) {
+      return animation === "fade" ? "Fade" : "Scroll";
+    }
+
+    function overlayScheduleLabel(overlay, index) {
+      if (index === 0) return `every ${overlay.repeatMinutes} min`;
+      const previous = index === 1 ? "Overlay 1" : "Overlay 2";
+      return `+${overlay.delaySeconds}s after ${previous}`;
+    }
+
+    function updateVisibleSections() {
+      overlayBindings.forEach((binding) => {
+        const type = binding.type.value;
+        const animation = binding.animation.value;
+        binding.textFields.hidden = type !== "text";
+        binding.imageFields.hidden = type !== "image";
+        binding.scrollFields.hidden = animation !== "scroll" || type === "none";
+        binding.fadeFields.hidden = animation !== "fade" || type === "none";
+      });
+    }
+
+    function updateScheduleSummary() {
+      sequenceSummaryEl.innerHTML = "";
+      state.overlays.forEach((overlay, index) => {
+        const card = document.createElement("div");
+        card.className = "summary-card";
+        const title = document.createElement("strong");
+        title.textContent = `Overlay ${index + 1}`;
+        const summary = document.createElement("span");
+        summary.textContent = `${overlay.enabled ? overlayTypeLabel(overlay.type) : "Disabled"} | ${overlayAnimationLabel(overlay.animation)} | ${overlayScheduleLabel(overlay, index)}`;
+        const details = document.createElement("span");
+        details.textContent = overlay.animation === "fade"
+          ? `Play ${overlay.screenTimeSeconds}s | Fade ${overlay.fadeSeconds}s in and ${overlay.fadeSeconds}s out`
+          : `Travel ${overlay.travelSeconds}s | Pause ${overlay.centerPauseSeconds}s | ${overlay.direction === "rtl" ? "Right to Left" : "Left to Right"}`;
+        card.append(title, summary, details);
+        sequenceSummaryEl.appendChild(card);
+      });
+    }
+
+    function setActiveTab(index) {
+      activeTabIndex = index;
+      tabButtons.forEach((button, buttonIndex) => button.classList.toggle("is-active", buttonIndex === index));
+      tabPanels.forEach((panel, panelIndex) => panel.classList.toggle("is-active", panelIndex === index));
+    }
+
+    function syncInputsFromState() {
+      staticInputs.enabled.checked = state.staticEnabled;
+      staticInputs.text.value = state.staticText;
+      staticInputs.fontFamily.value = state.staticFontFamily;
+      staticInputs.fontSizePx.value = state.staticFontSizePx;
+      staticInputs.fontWeight.value = state.staticFontWeight;
+      staticInputs.letterSpacingEm.value = state.staticLetterSpacingEm;
+      staticInputs.colorIntervalMinutes.value = state.staticColorIntervalMinutes;
+      staticInputs.backgroundColor.value = state.backgroundColor;
+      staticInputs.pixelShiftEnabled.checked = state.pixelShiftEnabled;
+      staticInputs.pixelShiftStrengthPx.value = state.pixelShiftStrengthPx;
+      staticInputs.autoReloadMinutes.value = state.autoReloadMinutes;
+      heartbeatInputs.dayStartTime.value = state.heartbeat.dayStartTime;
+      heartbeatInputs.dayEndTime.value = state.heartbeat.dayEndTime;
+      heartbeatInputs.activeIntervalSeconds.value = state.heartbeat.activeIntervalSeconds;
+      heartbeatInputs.idleIntervalSeconds.value = state.heartbeat.idleIntervalSeconds;
+      heartbeatInputs.dayOfflineThresholdMinutes.value = state.heartbeat.dayOfflineThresholdMinutes;
+      heartbeatInputs.nightOfflineThresholdMinutes.value = state.heartbeat.nightOfflineThresholdMinutes;
+      staticColorInputs.forEach((input, index) => { input.value = state.staticColors[index]; });
+      customPaletteInputs.forEach((input, index) => { input.value = state.sharedCustomColors[index]; });
+
+      overlayBindings.forEach((binding, index) => {
+        const overlay = state.overlays[index];
+        binding.enabled.checked = overlay.enabled;
+        binding.type.value = overlay.type;
+        binding.animation.value = overlay.animation;
+        if (binding.repeatMinutes) binding.repeatMinutes.value = overlay.repeatMinutes;
+        if (binding.delaySeconds) binding.delaySeconds.value = overlay.delaySeconds;
+        binding.direction.value = overlay.direction;
+        binding.travelSeconds.value = overlay.travelSeconds;
+        binding.centerPauseSeconds.value = overlay.centerPauseSeconds;
+        binding.screenTimeSeconds.value = overlay.screenTimeSeconds;
+        binding.fadeSeconds.value = overlay.fadeSeconds;
+        binding.text.value = overlay.text;
+        binding.fontFamily.value = overlay.fontFamily;
+        binding.fontSizePx.value = overlay.fontSizePx;
+        binding.fontWeight.value = overlay.fontWeight;
+        binding.letterSpacingEm.value = overlay.letterSpacingEm;
+        binding.textColor.value = overlay.textColor;
+        binding.textBackgroundEnabled.checked = overlay.textBackgroundEnabled;
+        binding.textBackgroundColor.value = overlay.textBackgroundColor;
+        populateAssetOptions(binding.imagePreset, overlay.imagePath);
+        binding.imagePath.value = overlay.imagePath;
+        binding.imageStyle.value = overlay.imageStyle;
+        binding.imageHeightPx.value = overlay.imageHeightPx;
+        binding.imageOpacity.value = overlay.imageOpacity;
+        binding.tabMeta.textContent = `${overlay.enabled ? overlayTypeLabel(overlay.type) : "Disabled"} | ${overlayAnimationLabel(overlay.animation)} | ${overlayScheduleLabel(overlay, index)}`;
+        binding.panelSummary.textContent = index === 0
+          ? `Overlay 1 anchors the sequence and repeats every ${overlay.repeatMinutes} minutes.`
+          : `Overlay ${index + 1} launches ${overlay.delaySeconds} seconds after the previous overlay begins.`;
+      });
+
+      renderSharedPalette();
+      updateVisibleSections();
+      updateScheduleSummary();
+      setActiveTab(activeTabIndex);
+    }
+
+    function readStateFromInputs() {
+      const nextState = normalizeState({
+        ...state,
+        staticEnabled: staticInputs.enabled.checked,
+        staticText: staticInputs.text.value,
+        staticFontFamily: staticInputs.fontFamily.value,
+        staticFontSizePx: staticInputs.fontSizePx.value,
+        staticFontWeight: staticInputs.fontWeight.value,
+        staticLetterSpacingEm: staticInputs.letterSpacingEm.value,
+        staticColorIntervalMinutes: staticInputs.colorIntervalMinutes.value,
+        backgroundColor: staticInputs.backgroundColor.value,
+        pixelShiftEnabled: staticInputs.pixelShiftEnabled.checked,
+        pixelShiftStrengthPx: staticInputs.pixelShiftStrengthPx.value,
+        autoReloadMinutes: staticInputs.autoReloadMinutes.value,
+        heartbeat: {
+          dayStartTime: heartbeatInputs.dayStartTime.value,
+          dayEndTime: heartbeatInputs.dayEndTime.value,
+          activeIntervalSeconds: heartbeatInputs.activeIntervalSeconds.value,
+          idleIntervalSeconds: heartbeatInputs.idleIntervalSeconds.value,
+          dayOfflineThresholdMinutes: heartbeatInputs.dayOfflineThresholdMinutes.value,
+          nightOfflineThresholdMinutes: heartbeatInputs.nightOfflineThresholdMinutes.value,
+          timezone: DEFAULT_HEARTBEAT_POLICY.timezone
+        },
+        staticColors: staticColorInputs.map((input) => input.value),
+        sharedCustomColors: customPaletteInputs.map((input) => input.value),
+        overlays: overlayBindings.map((binding, index) => ({
+          enabled: binding.enabled.checked,
+          type: binding.type.value,
+          animation: binding.animation.value,
+          repeatMinutes: index === 0 ? binding.repeatMinutes.value : state.overlays[index].repeatMinutes,
+          delaySeconds: index === 0 ? 0 : binding.delaySeconds.value,
+          direction: binding.direction.value,
+          travelSeconds: binding.travelSeconds.value,
+          centerPauseSeconds: binding.centerPauseSeconds.value,
+          screenTimeSeconds: binding.screenTimeSeconds.value,
+          fadeSeconds: binding.fadeSeconds.value,
+          text: binding.text.value,
+          fontFamily: binding.fontFamily.value,
+          fontSizePx: binding.fontSizePx.value,
+          fontWeight: binding.fontWeight.value,
+          letterSpacingEm: binding.letterSpacingEm.value,
+          textColor: binding.textColor.value,
+          textBackgroundEnabled: binding.textBackgroundEnabled.checked,
+          textBackgroundColor: binding.textBackgroundColor.value,
+          imagePath: binding.imagePath.value.trim(),
+          imageStyle: binding.imageStyle.value,
+          imageHeightPx: binding.imageHeightPx.value,
+          imageOpacity: binding.imageOpacity.value
+        }))
+      });
+      nextState.overlays[0].delaySeconds = 0;
+      state = nextState;
+    }
+
+    function notifyParent(open) {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({ type: "beacon-settings-state", target: "footer", open }, "*");
+    }
+
+    function announceStateChanged() {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({ type: "beacon-footer-state-updated" }, "*");
+    }
+
+    function setModalOpen(open) {
+      modalEl.classList.toggle("is-open", open);
+      modalEl.setAttribute("aria-hidden", open ? "false" : "true");
+      notifyParent(open);
+    }
+
+    function isShortcut(event, digit) {
+      if (!event.ctrlKey || !event.shiftKey) return false;
+      if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
+      return event.key === String(digit);
+    }
+
+    function requestTopModalOpen(target) {
+      try {
+        if (window.top && window.top !== window) {
+          try {
+            if (typeof window.top.beaconNextRequestOpen === "function") {
+              window.top.beaconNextRequestOpen(target);
+              return true;
+            }
+          } catch {}
+          window.top.postMessage({ type: "beacon-request-open", target }, "*");
+          return true;
+        }
+      } catch {}
+      return false;
+    }
+
+    function stopColorCycle() {
+      if (colorTimer) {
+        clearTimeout(colorTimer);
+        colorTimer = null;
+      }
+    }
+
+    function stopPixelShift() {
+      if (shiftTimer) {
+        clearInterval(shiftTimer);
+        shiftTimer = null;
+      }
+      staticLayerEl.style.setProperty("--shift-x", "0px");
+      staticLayerEl.style.setProperty("--shift-y", "0px");
+    }
+
+    function stopOverlaySchedulers() {
+      if (anchorIntervalId) {
+        clearInterval(anchorIntervalId);
+        anchorIntervalId = null;
+      }
+      pendingTimers.forEach((timerId) => clearTimeout(timerId));
+      pendingTimers = [];
+    }
+
+    function stopActiveOverlays() {
+      activeOverlayTokens = activeOverlayTokens.map((value) => value + 1);
+      overlayActiveFlags = [false, false, false];
+      overlayLayerEl.replaceChildren();
+    }
+
+    function applyPixelShiftPosition() {
+      const offset = SHIFT_OFFSETS[shiftIndex];
+      const strength = state.pixelShiftStrengthPx;
+      staticLayerEl.style.setProperty("--shift-x", `${offset.x * strength}px`);
+      staticLayerEl.style.setProperty("--shift-y", `${offset.y * strength}px`);
+    }
+
+    function startPixelShiftIfNeeded() {
+      stopPixelShift();
+      if (!state.staticEnabled || !state.pixelShiftEnabled) return;
+      shiftIndex = 0;
+      applyPixelShiftPosition();
+      shiftTimer = setInterval(() => {
+        shiftIndex = (shiftIndex + 1) % SHIFT_OFFSETS.length;
+        applyPixelShiftPosition();
+      }, SHIFT_INTERVAL_MS);
+    }
+
+    function buildStaticNode() {
+      const node = document.createElement("div");
+      node.className = "static-text";
+      node.textContent = state.staticText;
+      node.style.fontFamily = `"${state.staticFontFamily}", Arial, sans-serif`;
+      node.style.fontSize = `${state.staticFontSizePx}px`;
+      node.style.fontWeight = String(state.staticFontWeight);
+      node.style.letterSpacing = `${state.staticLetterSpacingEm}em`;
+      return node;
+    }
+
+    function applyCurrentStaticColor() {
+      const node = staticLayerEl.firstElementChild;
+      if (!node) return;
+      node.style.color = state.staticColors[colorIndex % state.staticColors.length];
+    }
+
+    function startColorCycle() {
+      stopColorCycle();
+      colorIndex = 0;
+      applyCurrentStaticColor();
+      if (!state.staticEnabled) return;
+      const intervalMs = state.staticColorIntervalMinutes * 60 * 1000;
+      function cycle() {
+        colorIndex = (colorIndex + 1) % state.staticColors.length;
+        applyCurrentStaticColor();
+        colorTimer = setTimeout(cycle, intervalMs);
+      }
+      colorTimer = setTimeout(cycle, intervalMs);
+    }
+
+    function renderStaticLayer() {
+      staticLayerEl.replaceChildren();
+      staticLayerEl.hidden = !state.staticEnabled;
+      if (!state.staticEnabled) {
+        stopColorCycle();
+        stopPixelShift();
+        return;
+      }
+      staticLayerEl.appendChild(buildStaticNode());
+      startColorCycle();
+      startPixelShiftIfNeeded();
+    }
+
+    function buildOverlayTextNode(overlay) {
+      const node = document.createElement("div");
+      node.className = "overlay-text";
+      node.textContent = overlay.text;
+      node.style.fontFamily = `"${overlay.fontFamily}", Arial, sans-serif`;
+      node.style.fontSize = `${overlay.fontSizePx}px`;
+      node.style.fontWeight = String(overlay.fontWeight);
+      node.style.letterSpacing = `${overlay.letterSpacingEm}em`;
+      node.style.color = overlay.textColor;
+      if (overlay.textBackgroundEnabled) {
+        node.style.background = overlay.textBackgroundColor;
+        node.style.padding = "0.26em 0.62em";
+        node.style.borderRadius = "0.5em";
+        node.style.boxShadow = "0 10px 22px rgba(0, 0, 0, 0.24)";
+      }
+      return node;
+    }
+
+    function buildOverlayImageNode(overlay) {
+      const img = document.createElement("img");
+      img.className = "overlay-image";
+      img.alt = "";
+      img.draggable = false;
+      img.src = overlay.imagePath;
+      img.style.height = `${overlay.imageHeightPx}px`;
+      img.style.opacity = overlay.imageStyle === "ghost" ? String(overlay.imageOpacity) : "1";
+      img.style.filter = overlay.imageStyle === "ghost"
+        ? "drop-shadow(0 0 18px rgba(182, 229, 255, 0.18))"
+        : "drop-shadow(0 0 12px rgba(255, 177, 110, 0.22))";
+      return img;
+    }
+
+    function buildOverlayNode(overlay) {
+      if (overlay.type === "text") return buildOverlayTextNode(overlay);
+      if (overlay.type === "image") return buildOverlayImageNode(overlay);
+      return null;
+    }
+
+    function waitForImages(node) {
+      const images = Array.from(node.querySelectorAll("img"));
+      if (!images.length) return Promise.resolve();
+      return Promise.all(images.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        });
+      }));
+    }
+
+    function scheduleTimeout(fn, delayMs) {
+      const timerId = setTimeout(() => {
+        pendingTimers = pendingTimers.filter((id) => id !== timerId);
+        fn();
+      }, delayMs);
+      pendingTimers.push(timerId);
+    }
+
+    function launchOverlay(slotIndex) {
+      const overlay = state.overlays[slotIndex];
+      if (!overlay.enabled || overlay.type === "none") return;
+      if (overlayActiveFlags[slotIndex]) return;
+      overlayActiveFlags[slotIndex] = true;
+      activeOverlayTokens[slotIndex] += 1;
+      const token = activeOverlayTokens[slotIndex];
+      const runner = document.createElement("div");
+      runner.className = "overlay-runner";
+      runner.style.zIndex = String(10 + slotIndex);
+      const content = buildOverlayNode(overlay);
+      if (!content) {
+        overlayActiveFlags[slotIndex] = false;
+        return;
+      }
+      runner.appendChild(content);
+      overlayLayerEl.appendChild(runner);
+
+      waitForImages(runner).then(() => {
+        if (token !== activeOverlayTokens[slotIndex]) return;
+        const startTime = performance.now();
+
+        if (overlay.animation === "fade") {
+          const totalDurationMs = (overlay.screenTimeSeconds * 1000) + (overlay.fadeSeconds * 2000);
+          const fadeDurationMs = overlay.fadeSeconds * 1000;
+          const holdStartMs = fadeDurationMs;
+          const holdEndMs = fadeDurationMs + (overlay.screenTimeSeconds * 1000);
+          const viewportWidth = overlayLayerEl.clientWidth || window.innerWidth || 1;
+          const runnerWidth = Math.max(runner.offsetWidth, 1);
+          const centerX = (viewportWidth - runnerWidth) / 2;
+          runner.style.transform = `translate(${centerX}px, -50%)`;
+          function frame(now) {
+            if (token !== activeOverlayTokens[slotIndex]) return;
+            const elapsed = now - startTime;
+            let opacity = 1;
+            if (fadeDurationMs > 0 && elapsed < holdStartMs) opacity = elapsed / fadeDurationMs;
+            else if (fadeDurationMs > 0 && elapsed > holdEndMs) opacity = Math.max(0, 1 - ((elapsed - holdEndMs) / fadeDurationMs));
+            runner.style.opacity = String(Math.min(1, Math.max(0, opacity)));
+            if (elapsed >= totalDurationMs) {
+              overlayActiveFlags[slotIndex] = false;
+              runner.remove();
+              return;
+            }
+            requestAnimationFrame(frame);
+          }
+          runner.style.opacity = "0";
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        const viewportWidth = overlayLayerEl.clientWidth || window.innerWidth || 1;
+        const runnerWidth = Math.max(runner.offsetWidth, 1);
+        const startX = overlay.direction === "rtl" ? viewportWidth : -runnerWidth;
+        const centerX = (viewportWidth - runnerWidth) / 2;
+        const endX = overlay.direction === "rtl" ? -runnerWidth : viewportWidth;
+        const moveDurationMs = overlay.travelSeconds * 1000;
+        const segmentDurationMs = moveDurationMs / 2;
+        const pauseDurationMs = overlay.centerPauseSeconds * 1000;
+        const totalDurationMs = moveDurationMs + pauseDurationMs;
+
+        function frame(now) {
+          if (token !== activeOverlayTokens[slotIndex]) return;
+          const elapsed = now - startTime;
+          let x = endX;
+          if (elapsed <= segmentDurationMs) {
+            const progressIn = segmentDurationMs <= 0 ? 1 : elapsed / segmentDurationMs;
+            x = startX + ((centerX - startX) * progressIn);
+          } else if (elapsed <= segmentDurationMs + pauseDurationMs) {
+            x = centerX;
+          } else if (elapsed <= totalDurationMs) {
+            const progressOut = segmentDurationMs <= 0 ? 1 : (elapsed - segmentDurationMs - pauseDurationMs) / segmentDurationMs;
+            x = centerX + ((endX - centerX) * progressOut);
+          }
+          runner.style.transform = `translate(${x}px, -50%)`;
+          if (elapsed >= totalDurationMs) {
+            overlayActiveFlags[slotIndex] = false;
+            runner.remove();
+            return;
+          }
+          requestAnimationFrame(frame);
+        }
+
+        runner.style.transform = `translate(${startX}px, -50%)`;
+        requestAnimationFrame(frame);
+      });
+    }
+
+    function runOverlayCycle() {
+      launchOverlay(0);
+      scheduleTimeout(() => launchOverlay(1), state.overlays[1].delaySeconds * 1000);
+      scheduleTimeout(() => launchOverlay(2), (state.overlays[1].delaySeconds + state.overlays[2].delaySeconds) * 1000);
+    }
+
+    function startOverlaySchedulers() {
+      stopOverlaySchedulers();
+      stopActiveOverlays();
+      runOverlayCycle();
+      anchorIntervalId = setInterval(runOverlayCycle, state.overlays[0].repeatMinutes * 60 * 1000);
+    }
+
+    function render() {
+      document.documentElement.style.setProperty("--footer-bg", state.backgroundColor);
+      const activeCount = state.overlays.filter((overlay) => overlay.enabled && overlay.type !== "none").length;
+      modeBadgeEl.textContent = `${state.staticEnabled ? "Static On" : "Static Off"} | ${activeCount} Overlay${activeCount === 1 ? "" : "s"} Active`;
+      renderSharedPalette();
+      updateVisibleSections();
+      updateScheduleSummary();
+      overlayBindings.forEach((binding, index) => {
+        const overlay = state.overlays[index];
+        binding.tabMeta.textContent = `${overlay.enabled ? overlayTypeLabel(overlay.type) : "Disabled"} | ${overlayAnimationLabel(overlay.animation)} | ${overlayScheduleLabel(overlay, index)}`;
+        binding.panelSummary.textContent = index === 0
+          ? `Overlay 1 anchors the repeating sequence every ${overlay.repeatMinutes} minutes.`
+          : `Overlay ${index + 1} is offset by ${overlay.delaySeconds} seconds from the previous overlay start.`;
+      });
+      renderStaticLayer();
+      stopActiveOverlays();
+      stopOverlaySchedulers();
+      overlayLayerEl.style.display = LOCAL_OVERLAY_PREVIEW ? "block" : "none";
+      if (LOCAL_OVERLAY_PREVIEW) startOverlaySchedulers();
+      pushAutoReloadToShell();
+      pushHeartbeatPolicyToShell();
+    }
+
+    function applyAndRender() {
+      readStateFromInputs();
+      overlayBindings.forEach((binding, index) => populateAssetOptions(binding.imagePreset, state.overlays[index].imagePath));
+      saveState();
+      render();
+      announceStateChanged();
+      syncClient?.commit();
+    }
+
+    function exportSyncState() {
+      return JSON.parse(JSON.stringify(state));
+    }
+
+    function applySyncState(nextState) {
+      if (!nextState || typeof nextState !== "object") return;
+      state = normalizeState({ ...state, ...nextState });
+      syncInputsFromState();
+      saveState();
+      render();
+      announceStateChanged();
+    }
+
+    function bindColorTargetSelection(input) {
+      input.addEventListener("focus", () => {
+        currentColorTarget = input;
+        updatePaletteTargetLabel();
+      });
+      input.addEventListener("click", () => {
+        currentColorTarget = input;
+        updatePaletteTargetLabel();
+      });
+    }
+
+    function bindEvents() {
+      openSettingsButton.addEventListener("click", () => {
+        if (!requestTopModalOpen("footer")) setModalOpen(true);
+      });
+      closeButton.addEventListener("click", () => setModalOpen(false));
+      resetButton.addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(AUTO_RELOAD_STORAGE_KEY);
+        localStorage.removeItem(HEARTBEAT_POLICY_STORAGE_KEY);
+        state = structuredClone(DEFAULT_STATE);
+        state.staticText = baseBrandName;
+        syncInputsFromState();
+        saveState();
+        render();
+        announceStateChanged();
+        syncClient?.commit();
+      });
+
+      tabButtons.forEach((button, index) => button.addEventListener("click", () => setActiveTab(index)));
+
+      const dedicatedInputs = new Set();
+      const configColorInputs = [
+        ...staticColorInputs,
+        ...customPaletteInputs,
+        staticInputs.backgroundColor,
+        ...overlayBindings.flatMap((binding) => [binding.textColor, binding.textBackgroundColor])
+      ].filter(Boolean);
+      configColorInputs.forEach(bindColorTargetSelection);
+
+      overlayBindings.forEach((binding) => {
+        dedicatedInputs.add(binding.imagePreset);
+        dedicatedInputs.add(binding.type);
+        dedicatedInputs.add(binding.animation);
+        binding.imagePreset.addEventListener("change", () => {
+          binding.imagePath.value = binding.imagePreset.value;
+          applyAndRender();
+        });
+        binding.type.addEventListener("change", () => {
+          updateVisibleSections();
+          applyAndRender();
+        });
+        binding.animation.addEventListener("change", () => {
+          updateVisibleSections();
+          applyAndRender();
+        });
+      });
+
+      const allInputs = [
+        ...Object.values(staticInputs),
+        ...Object.values(heartbeatInputs),
+        ...staticColorInputs,
+        ...customPaletteInputs,
+        ...overlayBindings.flatMap((binding) =>
+          Object.values(binding).filter((value) => value instanceof HTMLElement && value.tagName !== "BUTTON")
+        )
+      ].filter((input) => !dedicatedInputs.has(input));
+
+      allInputs.forEach((input) => {
+        if (!(input instanceof HTMLElement)) return;
+        const eventName = input.tagName === "TEXTAREA" || input.getAttribute("type") === "text" || input.getAttribute("type") === "color"
+          ? "input"
+          : "change";
+        input.addEventListener(eventName, applyAndRender);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (isShortcut(event, 2) || isShortcut(event, 3)) {
+          event.preventDefault();
+          requestTopModalOpen("secondary");
+          return;
+        }
+        if ((event.ctrlKey && event.shiftKey && event.code === "KeyF") || isShortcut(event, 4)) {
+          event.preventDefault();
+          if (!requestTopModalOpen("footer")) setModalOpen(true);
+          return;
+        }
+        if (event.key === "Escape" && modalEl.classList.contains("is-open")) {
+          event.preventDefault();
+          setModalOpen(false);
+        }
+      });
+
+      modalEl.addEventListener("click", (event) => {
+        if (event.target === modalEl) setModalOpen(false);
+      });
+
+      window.addEventListener("message", (event) => {
+        const data = event.data;
+        if (!data) return;
+        if (data.type === "beacon-request-open" && data.target === "footer") {
+          setModalOpen(true);
+        } else if (data.type === "beacon-request-close" && data.target === "footer") {
+          setModalOpen(false);
+        }
+      });
+
+      window.addEventListener("storage", async (event) => {
+        if (event.key !== STORAGE_KEY && event.key !== AUTO_RELOAD_STORAGE_KEY && event.key !== HEARTBEAT_POLICY_STORAGE_KEY) return;
+        await loadInitialState();
+        syncInputsFromState();
+        render();
+      });
+
+      window.addEventListener("beforeunload", () => {
+        stopColorCycle();
+        stopPixelShift();
+        stopOverlaySchedulers();
+        stopActiveOverlays();
+      });
+    }
+
+    (async function init() {
+      buildStaticColorInputs();
+      buildPaletteCustomInputs();
+      buildOverlayControls();
+      await loadInitialState();
+      await loadAssetManifest();
+      syncInputsFromState();
+      bindEvents();
+      render();
+      setActiveTab(0);
+      if (window.beaconSync) {
+        syncClient = window.beaconSync.createClient({
+          scope: window.beaconIdentity?.buildSyncScope?.("footer") || "footer",
+          getState: exportSyncState,
+          applyState: applySyncState,
+          onStatus: updateSyncIndicator
+        });
+        syncClient.start().then((started) => {
+          if (!started) updateSyncIndicator({ configured: false, connected: false, ready: false });
+        });
+      } else {
+        updateSyncIndicator({ configured: false, connected: false, ready: false });
+      }
+      if (IS_MODAL_HOST) setModalOpen(true);
+    })();
+  </script>
+</body>
+</html>

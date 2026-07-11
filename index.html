@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Beacon Digital Network</title>
+  <style>
+    :root {
+      --primary-height: 78%;
+      --secondary-height: 17%;
+      --footer-height: 5%;
+      --base-bg: #0f1114;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--base-bg);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    iframe {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: transparent;
+      min-height: 0;
+    }
+
+    .zone {
+      z-index: 1;
+    }
+
+    .zone.modal-frame {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1500;
+      background: var(--base-bg);
+    }
+
+    #primaryFrame {
+      top: 0;
+      left: 0;
+      height: var(--primary-height);
+      z-index: 1;
+    }
+
+    #secondaryFrame {
+      top: var(--primary-height);
+      left: 0;
+      height: var(--secondary-height);
+      z-index: 2;
+    }
+
+    #footerFrame {
+      top: calc(var(--primary-height) + var(--secondary-height));
+      left: 0;
+      height: var(--footer-height);
+      z-index: 3;
+    }
+
+    #overlayFrame {
+      top: var(--primary-height);
+      left: 0;
+      height: calc(var(--secondary-height) + var(--footer-height));
+      z-index: 20;
+      pointer-events: none;
+      background: transparent;
+    }
+
+    #modalHostFrame {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2000;
+      background: var(--base-bg);
+    }
+
+    #modalHostFrame.is-open {
+      display: block;
+    }
+
+    .system-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 3000;
+      display: none;
+      max-width: min(440px, calc(100vw - 20px));
+      padding: 7px 10px;
+      border-radius: 6px;
+      background: rgba(10, 13, 18, 0.9);
+      color: #f8fafc;
+      border: 1px solid rgba(248, 250, 252, 0.25);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      font-size: 13px;
+      line-height: 1.3;
+      pointer-events: none;
+    }
+
+    .system-status.is-visible {
+      display: block;
+    }
+
+    .system-status.is-alert {
+      background: rgba(91, 28, 28, 0.94);
+      border-color: rgba(248, 113, 113, 0.65);
+    }
+
+    .system-status.is-warning {
+      background: rgba(84, 57, 20, 0.94);
+      border-color: rgba(250, 204, 21, 0.65);
+    }
+  </style>
+</head>
+<body>
+  <div class="system-status" id="systemStatus" role="status" aria-live="polite"></div>
+  <iframe class="zone" id="primaryFrame" src="primary.html" title="Primary Zone" scrolling="no"></iframe>
+  <iframe class="zone" id="secondaryFrame" src="secondary.html" title="Secondary Zone" scrolling="no"></iframe>
+  <iframe class="zone" id="footerFrame" src="footer.html" title="Footer Zone" scrolling="no"></iframe>
+  <iframe id="overlayFrame" src="secondary-footer-overlay.html" title="Secondary Footer Overlay" scrolling="no"></iframe>
+  <iframe id="modalHostFrame" title="Hosted Settings Modal" scrolling="no"></iframe>
+
+  <script src="assets/bdn-identity.js"></script>
+  <script src="assets/bdn-runtime-config.js"></script>
+  <script>
+    const SHOW_SYSTEM_STATUS = false;
+    const HOSTED_MODAL_SOURCES = {
+      secondary: "secondary.html?modalHost=1",
+      footer: "footer.html?modalHost=1"
+    };
+    const beaconIdentity = window.beaconIdentity || null;
+
+    beaconIdentity?.applyIdentityDataset(document.documentElement);
+
+    const systemStatus = SHOW_SYSTEM_STATUS ? document.getElementById("systemStatus") : null;
+    const frames = {
+      primary: document.getElementById("primaryFrame"),
+      secondary: document.getElementById("secondaryFrame"),
+      footer: document.getElementById("footerFrame"),
+      overlay: document.getElementById("overlayFrame"),
+      modalHost: document.getElementById("modalHostFrame")
+    };
+    const AUTO_RELOAD_KEY = "beacon_auto_reload_minutes";
+    const HEARTBEAT_POLICY_STORAGE_KEY = "bdn_region_heartbeat_policy_v1";
+    const DEFAULT_HEARTBEAT_POLICY = {
+      dayStartTime: "08:00",
+      dayEndTime: "23:00",
+      activeIntervalSeconds: 300,
+      idleIntervalSeconds: 3600,
+      dayOfflineThresholdMinutes: 20,
+      nightOfflineThresholdMinutes: 90,
+      timezone: "America/Chicago"
+    };
+    const CONNECTIVITY_PROBE_INTERVAL_MS = 60000;
+    const CONNECTIVITY_PROBE_TIMEOUT_MS = 5000;
+    let activeModalTarget = null;
+    let activeModalMode = null;
+    let autoReloadTimer = null;
+    let autoReloadMinutes = 0;
+    let heartbeatTimer = null;
+    let reloadDeferred = false;
+    let statusClearTimer = null;
+    let connectivityTimer = null;
+    let deferredReloadTimer = null;
+    let networkReachable = navigator.onLine !== false;
+    let heartbeatApiBase = "";
+    let heartbeatPolicy = { ...DEFAULT_HEARTBEAT_POLICY };
+    const syncStatuses = {};
+
+    async function loadControlPlaneConfig() {
+      if (!window.beaconRuntimeConfig || typeof window.beaconRuntimeConfig.getHeartbeatUrl !== "function") {
+        heartbeatApiBase = "";
+        return;
+      }
+      heartbeatApiBase = await window.beaconRuntimeConfig.getHeartbeatUrl();
+    }
+
+    function registerServiceWorker() {
+      if (!("serviceWorker" in navigator)) return;
+      navigator.serviceWorker.register("sw.js").catch(() => {
+        // Keep signage running if service worker registration is unavailable.
+      });
+    }
+
+    function visibleSyncOutages() {
+      return Object.entries(syncStatuses)
+        .filter(([, status]) => status && status.configured && !status.connected)
+        .map(([scope]) => scope);
+    }
+
+    function setTransientStatus(message) {
+      if (!systemStatus) return;
+      if (statusClearTimer) {
+        clearTimeout(statusClearTimer);
+        statusClearTimer = null;
+      }
+      systemStatus.textContent = message;
+      systemStatus.className = "system-status is-visible";
+      statusClearTimer = setTimeout(updateSystemStatus, 4000);
+    }
+
+    function updateSystemStatus() {
+      if (!systemStatus) return;
+      if (statusClearTimer) {
+        clearTimeout(statusClearTimer);
+        statusClearTimer = null;
+      }
+
+      const offline = navigator.onLine === false || !networkReachable;
+      const syncOutages = visibleSyncOutages();
+      let message = "";
+      let level = "";
+
+      if (offline) {
+        message = reloadDeferred
+          ? "Network offline. Auto reload is paused."
+          : "Network offline. Playing cached content.";
+        level = "is-alert";
+      } else if (reloadDeferred) {
+        message = "Network restored. Reloading soon.";
+        level = "is-warning";
+      } else if (syncOutages.length) {
+        message = `Sync offline: ${syncOutages.join(", ")}. Local settings remain active.`;
+        level = "is-warning";
+      }
+
+      systemStatus.textContent = message;
+      systemStatus.className = message
+        ? `system-status is-visible ${level}`.trim()
+        : "system-status";
+    }
+
+    async function checkConnectivity() {
+      if (navigator.onLine === false) return false;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CONNECTIVITY_PROBE_TIMEOUT_MS);
+      try {
+        const response = await fetch(`data/sync.json?beacon-probe=${Date.now()}`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        return response.ok;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function refreshConnectivity() {
+      const wasReachable = networkReachable;
+      networkReachable = await checkConnectivity();
+      if (reloadDeferred && networkReachable && !deferredReloadTimer) {
+        updateSystemStatus();
+        deferredReloadTimer = setTimeout(() => {
+          if (navigator.onLine !== false && networkReachable) {
+            window.location.reload();
+          }
+        }, 2500);
+        return;
+      }
+      if (!wasReachable && networkReachable && !reloadDeferred) {
+        setTransientStatus("Network restored.");
+        return;
+      }
+      updateSystemStatus();
+    }
+
+    function startConnectivityMonitor() {
+      if (connectivityTimer) {
+        clearInterval(connectivityTimer);
+      }
+      refreshConnectivity();
+      connectivityTimer = setInterval(refreshConnectivity, CONNECTIVITY_PROBE_INTERVAL_MS);
+    }
+
+    function isHostedModalTarget(target) {
+      return target === "secondary" || target === "footer";
+    }
+
+    function resolveInlineFrame(target) {
+      if (target === "primary" || target === "trivia") return frames.primary;
+      return null;
+    }
+
+    function activateInlineModal(target) {
+      const frame = resolveInlineFrame(target);
+      if (!frame) return;
+      [frames.primary, frames.secondary, frames.footer].forEach((zoneFrame) => {
+        zoneFrame.classList.remove("modal-frame");
+      });
+      frame.classList.add("modal-frame");
+      activeModalTarget = target;
+      activeModalMode = "inline";
+    }
+
+    function clearInlineModal() {
+      [frames.primary, frames.secondary, frames.footer].forEach((zoneFrame) => {
+        zoneFrame.classList.remove("modal-frame");
+      });
+      if (activeModalMode === "inline") {
+        activeModalTarget = null;
+        activeModalMode = null;
+      }
+    }
+
+    function getHostedModalSource(target) {
+      return HOSTED_MODAL_SOURCES[target] || "";
+    }
+
+    function hideHostedModal(resetSource = false) {
+      frames.modalHost.classList.remove("is-open");
+      frames.modalHost.removeAttribute("data-target");
+      frames.modalHost.onload = null;
+      if (resetSource) {
+        frames.modalHost.src = "about:blank";
+      }
+      if (activeModalMode === "hosted") {
+        activeModalTarget = null;
+        activeModalMode = null;
+      }
+    }
+
+    function openHostedModal(target) {
+      const source = getHostedModalSource(target);
+      if (!source) return;
+
+      clearInlineModal();
+
+      const expectedSource = new URL(source, window.location.href).href;
+      const currentSource = frames.modalHost.getAttribute("src")
+        ? new URL(frames.modalHost.getAttribute("src"), window.location.href).href
+        : "";
+
+      activeModalTarget = target;
+      activeModalMode = "hosted";
+      frames.modalHost.dataset.target = target;
+      frames.modalHost.classList.add("is-open");
+
+      if (currentSource !== expectedSource) {
+        frames.modalHost.onload = () => {
+          frames.modalHost.onload = null;
+        };
+        frames.modalHost.src = source;
+        return;
+      }
+
+      frames.modalHost.contentWindow?.postMessage({ type: "beacon-request-open", target }, "*");
+    }
+
+    function requestOpen(target) {
+      if (!target) return;
+      if (activeModalTarget && activeModalTarget !== target) {
+        requestClose(activeModalTarget);
+      }
+
+      if (isHostedModalTarget(target)) {
+        openHostedModal(target);
+        return;
+      }
+
+      const frame = resolveInlineFrame(target);
+      if (!frame) return;
+      hideHostedModal(false);
+      activateInlineModal(target);
+      frame.contentWindow?.postMessage({ type: "beacon-request-open", target }, "*");
+    }
+
+    function requestClose(target) {
+      if (!target) return;
+
+      if (isHostedModalTarget(target)) {
+        if (activeModalMode === "hosted" && activeModalTarget === target) {
+          frames.modalHost.contentWindow?.postMessage({ type: "beacon-request-close", target }, "*");
+          hideHostedModal(true);
+        }
+        return;
+      }
+
+      const frame = resolveInlineFrame(target);
+      if (frame) {
+        frame.contentWindow?.postMessage({ type: "beacon-request-close", target }, "*");
+      }
+      if (activeModalMode === "inline" && activeModalTarget === target) {
+        clearInlineModal();
+      }
+    }
+
+    window.beaconNextRequestOpen = requestOpen;
+    window.beaconNextRequestClose = requestClose;
+
+    function sanitizeReloadMinutes(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(1440, Math.round(numeric)));
+    }
+
+    function clampNumber(value, min, max, fallback) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+      return Math.min(max, Math.max(min, numeric));
+    }
+
+    function normalizeTimeString(value, fallback) {
+      const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
+      if (!match) return fallback;
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return fallback;
+      }
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function sanitizeHeartbeatPolicy(rawPolicy) {
+      const next = { ...DEFAULT_HEARTBEAT_POLICY, ...(rawPolicy || {}) };
+      const legacyOfflineThresholdMinutes = clampNumber(
+        next.offlineThresholdMinutes,
+        5,
+        1440,
+        DEFAULT_HEARTBEAT_POLICY.nightOfflineThresholdMinutes
+      );
+      return {
+        dayStartTime: normalizeTimeString(next.dayStartTime, DEFAULT_HEARTBEAT_POLICY.dayStartTime),
+        dayEndTime: normalizeTimeString(next.dayEndTime, DEFAULT_HEARTBEAT_POLICY.dayEndTime),
+        activeIntervalSeconds: clampNumber(next.activeIntervalSeconds, 60, 86400, DEFAULT_HEARTBEAT_POLICY.activeIntervalSeconds),
+        idleIntervalSeconds: clampNumber(next.idleIntervalSeconds, 60, 86400, DEFAULT_HEARTBEAT_POLICY.idleIntervalSeconds),
+        dayOfflineThresholdMinutes: clampNumber(
+          next.dayOfflineThresholdMinutes,
+          5,
+          1440,
+          legacyOfflineThresholdMinutes
+        ),
+        nightOfflineThresholdMinutes: clampNumber(
+          next.nightOfflineThresholdMinutes,
+          5,
+          1440,
+          legacyOfflineThresholdMinutes
+        ),
+        timezone: String(next.timezone || DEFAULT_HEARTBEAT_POLICY.timezone).trim() || DEFAULT_HEARTBEAT_POLICY.timezone
+      };
+    }
+
+    function loadHeartbeatPolicySetting() {
+      try {
+        const stored = localStorage.getItem(HEARTBEAT_POLICY_STORAGE_KEY);
+        heartbeatPolicy = stored ? sanitizeHeartbeatPolicy(JSON.parse(stored)) : { ...DEFAULT_HEARTBEAT_POLICY };
+      } catch {
+        heartbeatPolicy = { ...DEFAULT_HEARTBEAT_POLICY };
+      }
+    }
+
+    function timePartsInZone(date, timezone) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).formatToParts(date);
+      const hour = Number(parts.find((part) => part.type === "hour")?.value || 0);
+      const minute = Number(parts.find((part) => part.type === "minute")?.value || 0);
+      return { hour, minute };
+    }
+
+    function minutesForTimeString(value) {
+      const [hour, minute] = String(value || "00:00").split(":").map((part) => Number(part));
+      return (hour * 60) + minute;
+    }
+
+    function isHeartbeatDayWindow(policy, date = new Date()) {
+      const current = timePartsInZone(date, policy.timezone);
+      const currentMinutes = (current.hour * 60) + current.minute;
+      const startMinutes = minutesForTimeString(policy.dayStartTime);
+      const endMinutes = minutesForTimeString(policy.dayEndTime);
+      if (startMinutes === endMinutes) return true;
+      if (startMinutes < endMinutes) {
+        return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      }
+      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    }
+
+    function getHeartbeatSchedule(policy, date = new Date()) {
+      const active = isHeartbeatDayWindow(policy, date);
+      return {
+        mode: active ? "active" : "idle",
+        intervalSeconds: active ? policy.activeIntervalSeconds : policy.idleIntervalSeconds,
+        offlineThresholdMinutes: active ? policy.dayOfflineThresholdMinutes : policy.nightOfflineThresholdMinutes
+      };
+    }
+
+    function scheduleAutoReload() {
+      if (autoReloadTimer) {
+        clearTimeout(autoReloadTimer);
+        autoReloadTimer = null;
+      }
+      if (autoReloadMinutes <= 0) return;
+      autoReloadTimer = setTimeout(() => {
+        attemptAutoReload();
+      }, autoReloadMinutes * 60 * 1000);
+    }
+
+    async function attemptAutoReload() {
+      networkReachable = await checkConnectivity();
+      if (navigator.onLine === false || !networkReachable) {
+        reloadDeferred = true;
+        updateSystemStatus();
+        return;
+      }
+      window.location.reload();
+    }
+
+    function loadAutoReloadSetting() {
+      const stored = localStorage.getItem(AUTO_RELOAD_KEY);
+      autoReloadMinutes = sanitizeReloadMinutes(stored || 0);
+      scheduleAutoReload();
+    }
+
+    function getHeartbeatInfo() {
+      if (beaconIdentity) {
+        const identity = beaconIdentity.getIdentity();
+        if (!identity.hasIdentity) return null;
+        return {
+          tenant: identity.tenant,
+          region: identity.region,
+          device: identity.device
+        };
+      }
+      const params = new URLSearchParams(window.location.search);
+      const tenant = (params.get("tenant") || params.get("customer") || params.get("tenant_id") || "").trim().toLowerCase();
+      const region = (params.get("region") || "").trim().toLowerCase();
+      const device =
+        (params.get("device") || params.get("device_id") || params.get("deviceId") || "").trim().toLowerCase();
+      if (!tenant || !region || !device) return null;
+      return { tenant, region, device };
+    }
+
+    function buildHeartbeatPayload(info) {
+      const schedule = getHeartbeatSchedule(heartbeatPolicy);
+      return {
+        tenant: info.tenant,
+        region: info.region,
+        device_id: info.device,
+        url: window.location.href,
+        app_version: "bdn-next",
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        visibility: document.visibilityState,
+        heartbeat_policy: {
+          ...heartbeatPolicy,
+          currentMode: schedule.mode,
+          currentIntervalSeconds: schedule.intervalSeconds,
+          currentOfflineThresholdMinutes: schedule.offlineThresholdMinutes
+        },
+        scope_summary: buildScopeSummary(),
+        override_summary: buildOverrideSummary()
+      };
+    }
+
+    function buildScopeSummary() {
+      const scopeBuilder = window.beaconIdentity?.buildSyncScope;
+      return {
+        primary: scopeBuilder ? scopeBuilder("primary") : "primary",
+        secondary: scopeBuilder ? scopeBuilder("secondary") : "secondary",
+        trivia: scopeBuilder ? scopeBuilder("trivia") : "trivia",
+        footer: scopeBuilder ? scopeBuilder("footer") : "footer"
+      };
+    }
+
+    function buildOverrideSummary() {
+      const primaryPinned = localStorage.getItem("beacon_primary_playlist_pinned") === "true";
+      const secondaryHasLocalState = Boolean(
+        localStorage.getItem("beacon_weather_location")
+        || localStorage.getItem("beacon_weather_bar_colors")
+        || localStorage.getItem("beacon_weather_logo_path")
+      );
+
+      return {
+        primary: {
+          mode: primaryPinned ? "device-override" : "region-default",
+          hasOverride: primaryPinned
+        },
+        secondary: {
+          mode: "device-only",
+          hasOverride: secondaryHasLocalState
+        },
+        trivia: {
+          mode: "region-default",
+          hasOverride: false
+        },
+        footer: {
+          mode: "region-default",
+          hasOverride: false
+        }
+      };
+    }
+
+    async function sendHeartbeat() {
+      const info = getHeartbeatInfo();
+      if (!info || !heartbeatApiBase) return;
+      try {
+        await fetch(`${heartbeatApiBase}/api/heartbeat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildHeartbeatPayload(info))
+        });
+      } catch {
+        // Ignore heartbeat errors to avoid impacting playback.
+      }
+    }
+
+    function clearHeartbeatTimer() {
+      if (heartbeatTimer) {
+        clearTimeout(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+
+    function scheduleNextHeartbeat() {
+      clearHeartbeatTimer();
+      const info = getHeartbeatInfo();
+      if (!info || !heartbeatApiBase) return;
+      const schedule = getHeartbeatSchedule(heartbeatPolicy);
+      heartbeatTimer = setTimeout(async () => {
+        await sendHeartbeat();
+        scheduleNextHeartbeat();
+      }, schedule.intervalSeconds * 1000);
+    }
+
+    function startHeartbeat() {
+      clearHeartbeatTimer();
+      const info = getHeartbeatInfo();
+      if (!info) return;
+      sendHeartbeat();
+      scheduleNextHeartbeat();
+    }
+
+    function isShortcut(event, digit) {
+      if (!event.ctrlKey || !event.shiftKey) return false;
+      if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
+      return event.key === String(digit);
+    }
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data) return;
+
+      if (data.type === "beacon-auto-reload") {
+        autoReloadMinutes = sanitizeReloadMinutes(data.minutes);
+        scheduleAutoReload();
+        return;
+      }
+
+      if (data.type === "beacon-heartbeat-policy" && data.policy) {
+        heartbeatPolicy = sanitizeHeartbeatPolicy(data.policy);
+        scheduleNextHeartbeat();
+        return;
+      }
+
+      if (data.type === "beacon-sync-status" && data.scope && data.status) {
+        syncStatuses[data.scope] = data.status;
+        updateSystemStatus();
+        return;
+      }
+
+      if (data.type === "beacon-footer-state-updated" || data.type === "beacon-overlay-refresh") {
+        frames.overlay.contentWindow?.postMessage({ type: "beacon-overlay-refresh" }, "*");
+        return;
+      }
+
+      if (data.type === "beacon-request-open" && data.target) {
+        requestOpen(data.target);
+        return;
+      }
+
+      if (data.type === "beacon-request-close" && data.target) {
+        requestClose(data.target);
+        return;
+      }
+
+      if (data.type !== "beacon-settings-state" || !data.target) return;
+
+      if (isHostedModalTarget(data.target)) {
+        if (data.open && activeModalMode === "hosted" && activeModalTarget === data.target) {
+          frames.modalHost.classList.add("is-open");
+        } else if (!data.open && activeModalMode === "hosted" && activeModalTarget === data.target) {
+          hideHostedModal(true);
+        }
+        return;
+      }
+
+      if (data.open) {
+        hideHostedModal(false);
+        activateInlineModal(data.target);
+      } else if (activeModalMode === "inline" && activeModalTarget === data.target) {
+        clearInlineModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (isShortcut(event, 1)) {
+        event.preventDefault();
+        requestOpen("primary");
+        return;
+      }
+
+      if (isShortcut(event, 2) || isShortcut(event, 3)) {
+        event.preventDefault();
+        requestOpen("secondary");
+        return;
+      }
+
+      if (
+        (event.ctrlKey && event.shiftKey && event.code === "KeyF")
+        || isShortcut(event, 4)
+      ) {
+        event.preventDefault();
+        requestOpen("footer");
+        return;
+      }
+
+      if (event.key === "Escape" && activeModalTarget) {
+        event.preventDefault();
+        requestClose(activeModalTarget);
+      }
+    });
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === AUTO_RELOAD_KEY) {
+        loadAutoReloadSetting();
+        return;
+      }
+      if (event.key === HEARTBEAT_POLICY_STORAGE_KEY) {
+        loadHeartbeatPolicySetting();
+        scheduleNextHeartbeat();
+      }
+    });
+
+    document.addEventListener("visibilitychange", async () => {
+      await sendHeartbeat();
+      scheduleNextHeartbeat();
+    });
+
+    window.addEventListener("offline", updateSystemStatus);
+    window.addEventListener("online", async () => {
+      networkReachable = await checkConnectivity();
+      if (!networkReachable) {
+        updateSystemStatus();
+        return;
+      }
+      if (reloadDeferred) {
+        updateSystemStatus();
+        if (deferredReloadTimer) return;
+        deferredReloadTimer = setTimeout(() => {
+          if (navigator.onLine !== false && networkReachable) {
+            window.location.reload();
+          }
+        }, 2500);
+        return;
+      }
+      setTransientStatus("Network restored.");
+    });
+
+    const initialModalTarget = new URLSearchParams(window.location.search).get("open");
+    if (initialModalTarget === "secondary" || initialModalTarget === "footer") {
+      window.requestAnimationFrame(() => requestOpen(initialModalTarget));
+    }
+
+    (async () => {
+      registerServiceWorker();
+      loadAutoReloadSetting();
+      loadHeartbeatPolicySetting();
+      await loadControlPlaneConfig();
+      startHeartbeat();
+      startConnectivityMonitor();
+      updateSystemStatus();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+﻿{
+    "syncUrl":  "https://acme-control-plane.lperkins72.workers.dev",
+    "heartbeatUrl":  "https://acme-control-plane.lperkins72.workers.dev",
+    "settingsAuthUrl":  "https://acme-control-plane.lperkins72.workers.dev/api/settings-auth"
+}

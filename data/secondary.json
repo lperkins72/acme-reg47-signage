@@ -1,0 +1,19 @@
+{
+  "rotationSeconds": 15,
+  "sets": [
+    {
+      "items": [
+        { "label": "Weather", "value": "72F Clear" },
+        { "label": "Local Time", "value": "{{time}}", "type": "time" },
+        { "label": "Sponsor", "value": "Beacon Health" }
+      ]
+    },
+    {
+      "items": [
+        { "label": "Service Desk", "value": "Open 9AM-5PM" },
+        { "label": "Wi-Fi", "value": "Beacon-Guest" },
+        { "label": "Reminder", "value": "Keep badges visible" }
+      ]
+    }
+  ]
+}

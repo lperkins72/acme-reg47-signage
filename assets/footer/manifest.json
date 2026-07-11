@@ -1,0 +1,44 @@
+{
+  "assets": [
+    {
+      "label": "1 Scroll Advertiser JPG",
+      "path": "assets/footer/1scrolladvertiser.jpg"
+    },
+    {
+      "label": "2 Plane Scroll PNG",
+      "path": "assets/footer/2planescroll.png"
+    },
+    {
+      "label": "3 Plane Scroll PNG",
+      "path": "assets/footer/3planescroll.png"
+    },
+    {
+      "label": "5 Plane Scroll PNG",
+      "path": "assets/footer/5planescroll.png"
+    },
+    {
+      "label": "Banner Scroll JPG",
+      "path": "assets/footer/banner scroll.jpg"
+    },
+    {
+      "label": "Beacon Logo PNG",
+      "path": "assets/footer/beacon-logo.png"
+    },
+    {
+      "label": "Discount Scroll PNG",
+      "path": "assets/footer/discount scroll.png"
+    },
+    {
+      "label": "Plane Scroll PNG",
+      "path": "assets/footer/planescroll.png"
+    },
+    {
+      "label": "Ghost Comet SVG",
+      "path": "assets/footer/ghost-comet.svg"
+    },
+    {
+      "label": "Solid Banner SVG",
+      "path": "assets/footer/solid-banner.svg"
+    }
+  ]
+}
