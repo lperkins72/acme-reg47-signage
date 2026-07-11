@@ -422,7 +422,39 @@
       window.parent.postMessage({ type: "beacon-settings-state", target, open }, "*");
     }
 
+    function isTrustedEditorContext() {
+      const trustedHosts = new Set(["localhost", "127.0.0.1"]);
+      const candidates = [];
+
+      try { candidates.push(window); } catch {}
+      try {
+        if (window.top && window.top !== window) candidates.push(window.top);
+      } catch {}
+      try {
+        if (window.parent && window.parent !== window && window.parent !== window.top) {
+          candidates.push(window.parent);
+        }
+      } catch {}
+
+      for (const candidate of candidates) {
+        try {
+          if (candidate.BEACON_ALLOW_EMBEDDED_EDITORS === true) return true;
+          const location = candidate.location;
+          if (!location) continue;
+          if (location.protocol === "file:") return true;
+          if (trustedHosts.has(String(location.hostname || "").toLowerCase())) return true;
+        } catch {}
+      }
+
+      return false;
+    }
+
+    function canOpenEmbeddedEditor() {
+      return isTrustedEditorContext();
+    }
+
     function setSettingsVisible(visible) {
+      if (visible && !canOpenEmbeddedEditor()) return;
       settingsModal.classList.toggle("is-open", visible);
       document.body.classList.toggle("settings-open", visible);
       notifyParent("primary", visible);
@@ -433,6 +465,7 @@
     }
 
     function requestTriviaOpen() {
+      if (!canOpenEmbeddedEditor()) return;
       setTriviaLayout(true);
       if (primaryEndingFrame && primaryEndingFrame.contentWindow) {
         primaryEndingFrame.contentWindow.postMessage({ type: "beacon-request-open", target: "trivia" }, "*");
@@ -1277,8 +1310,10 @@
       const data = event.data;
       if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
       if (data.target === "primary") {
+        if (data.type === "beacon-request-open" && !canOpenEmbeddedEditor()) return;
         setSettingsVisible(data.type === "beacon-request-open");
       } else if (data.target === "trivia") {
+        if (data.type === "beacon-request-open" && !canOpenEmbeddedEditor()) return;
         if (data.type === "beacon-request-open") {
           requestTriviaOpen();
         } else {
@@ -1301,6 +1336,7 @@
     }
 
     function requestTopModalOpen(target) {
+      if (!canOpenEmbeddedEditor()) return false;
       try {
         if (window.top && window.top !== window) {
           try {
@@ -1317,6 +1353,7 @@
     }
 
     document.addEventListener("keydown", (event) => {
+      if (!canOpenEmbeddedEditor()) return;
       if (isShortcut(event, 1)) {
         event.preventDefault();
         window.top.postMessage({ type: "beacon-request-open", target: "primary" }, "*");

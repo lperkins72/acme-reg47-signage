@@ -1384,12 +1384,47 @@
       window.parent.postMessage({ type: "beacon-settings-state", target: "footer", open }, "*");
     }
 
+    function isTrustedEditorContext() {
+      const trustedHosts = new Set(["localhost", "127.0.0.1"]);
+      const candidates = [];
+
+      try { candidates.push(window); } catch {}
+      try {
+        if (window.top && window.top !== window) candidates.push(window.top);
+      } catch {}
+      try {
+        if (window.parent && window.parent !== window && window.parent !== window.top) {
+          candidates.push(window.parent);
+        }
+      } catch {}
+
+      for (const candidate of candidates) {
+        try {
+          if (candidate.BEACON_ALLOW_EMBEDDED_EDITORS === true) return true;
+          const location = candidate.location;
+          if (!location) continue;
+          if (location.protocol === "file:") return true;
+          if (trustedHosts.has(String(location.hostname || "").toLowerCase())) return true;
+        } catch {}
+      }
+
+      return false;
+    }
+
+    function canOpenEmbeddedEditor() {
+      return isTrustedEditorContext();
+    }
+
     function announceStateChanged() {
       if (!window.parent || window.parent === window) return;
       window.parent.postMessage({ type: "beacon-footer-state-updated" }, "*");
     }
 
     function setModalOpen(open) {
+      if (open && !canOpenEmbeddedEditor()) {
+        notifyParent(false);
+        return;
+      }
       modalEl.classList.toggle("is-open", open);
       modalEl.setAttribute("aria-hidden", open ? "false" : "true");
       notifyParent(open);
@@ -1402,6 +1437,7 @@
     }
 
     function requestTopModalOpen(target) {
+      if (!canOpenEmbeddedEditor()) return false;
       try {
         if (window.top && window.top !== window) {
           try {
@@ -1790,6 +1826,7 @@
       });
 
       window.addEventListener("keydown", (event) => {
+        if (!canOpenEmbeddedEditor()) return;
         if (isShortcut(event, 2) || isShortcut(event, 3)) {
           event.preventDefault();
           requestTopModalOpen("secondary");
@@ -1814,6 +1851,7 @@
         const data = event.data;
         if (!data) return;
         if (data.type === "beacon-request-open" && data.target === "footer") {
+          if (!canOpenEmbeddedEditor()) return;
           setModalOpen(true);
         } else if (data.type === "beacon-request-close" && data.target === "footer") {
           setModalOpen(false);
@@ -1858,7 +1896,7 @@
       } else {
         updateSyncIndicator({ configured: false, connected: false, ready: false });
       }
-      if (IS_MODAL_HOST) setModalOpen(true);
+      if (IS_MODAL_HOST && canOpenEmbeddedEditor()) setModalOpen(true);
     })();
   </script>
 </body>

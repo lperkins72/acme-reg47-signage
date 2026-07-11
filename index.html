@@ -369,7 +369,7 @@
     }
 
     function requestOpen(target) {
-      if (!target) return;
+      if (!target || !canOpenEmbeddedEditor()) return;
       if (activeModalTarget && activeModalTarget !== target) {
         requestClose(activeModalTarget);
       }
@@ -659,6 +659,37 @@
       return event.key === String(digit);
     }
 
+    function isTrustedEditorContext() {
+      const trustedHosts = new Set(["localhost", "127.0.0.1"]);
+      const candidates = [];
+
+      try { candidates.push(window); } catch {}
+      try {
+        if (window.top && window.top !== window) candidates.push(window.top);
+      } catch {}
+      try {
+        if (window.parent && window.parent !== window && window.parent !== window.top) {
+          candidates.push(window.parent);
+        }
+      } catch {}
+
+      for (const candidate of candidates) {
+        try {
+          if (candidate.BEACON_ALLOW_EMBEDDED_EDITORS === true) return true;
+          const location = candidate.location;
+          if (!location) continue;
+          if (location.protocol === "file:") return true;
+          if (trustedHosts.has(String(location.hostname || "").toLowerCase())) return true;
+        } catch {}
+      }
+
+      return false;
+    }
+
+    function canOpenEmbeddedEditor() {
+      return isTrustedEditorContext();
+    }
+
     window.addEventListener("message", (event) => {
       const data = event.data;
       if (!data) return;
@@ -687,6 +718,7 @@
       }
 
       if (data.type === "beacon-request-open" && data.target) {
+        if (!canOpenEmbeddedEditor()) return;
         requestOpen(data.target);
         return;
       }
@@ -716,6 +748,7 @@
     });
 
     document.addEventListener("keydown", (event) => {
+      if (!canOpenEmbeddedEditor()) return;
       if (isShortcut(event, 1)) {
         event.preventDefault();
         requestOpen("primary");
@@ -780,7 +813,7 @@
     });
 
     const initialModalTarget = new URLSearchParams(window.location.search).get("open");
-    if (initialModalTarget === "secondary" || initialModalTarget === "footer") {
+    if (canOpenEmbeddedEditor() && (initialModalTarget === "secondary" || initialModalTarget === "footer")) {
       window.requestAnimationFrame(() => requestOpen(initialModalTarget));
     }
 

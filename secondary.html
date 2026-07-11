@@ -833,9 +833,44 @@ function applyCurrentConditionLayout(text) {
 }
 
 function setSettingsVisible(visible) {
+  if (visible && !canOpenEmbeddedEditor()) {
+    notifyParent(false);
+    return;
+  }
   settingsModal.classList.toggle("is-open", visible);
   document.body.classList.toggle("settings-open", visible);
   notifyParent(visible);
+}
+
+function isTrustedEditorContext() {
+  const trustedHosts = new Set(["localhost", "127.0.0.1"]);
+  const candidates = [];
+
+  try { candidates.push(window); } catch {}
+  try {
+    if (window.top && window.top !== window) candidates.push(window.top);
+  } catch {}
+  try {
+    if (window.parent && window.parent !== window && window.parent !== window.top) {
+      candidates.push(window.parent);
+    }
+  } catch {}
+
+  for (const candidate of candidates) {
+    try {
+      if (candidate.BEACON_ALLOW_EMBEDDED_EDITORS === true) return true;
+      const location = candidate.location;
+      if (!location) continue;
+      if (location.protocol === "file:") return true;
+      if (trustedHosts.has(String(location.hostname || "").toLowerCase())) return true;
+    } catch {}
+  }
+
+  return false;
+}
+
+function canOpenEmbeddedEditor() {
+  return isTrustedEditorContext();
 }
 
 function normalizeSettingsPin(value) {
@@ -884,6 +919,13 @@ async function verifySettingsCode(pin) {
 }
 
 async function requestSettingsOpen() {
+  if (!canOpenEmbeddedEditor()) {
+    if (IS_MODAL_HOST) {
+      notifyParent(false);
+    }
+    return;
+  }
+
   const pin = normalizeSettingsPin(prompt("Enter calibration code:"));
   if (!pin) {
     if (IS_MODAL_HOST) {
@@ -920,6 +962,7 @@ function isShortcut(event, digit) {
 }
 
 function requestTopModalOpen(target) {
+  if (!canOpenEmbeddedEditor()) return false;
   try {
     if (window.top && window.top !== window) {
       try {
@@ -936,6 +979,7 @@ function requestTopModalOpen(target) {
 }
 
 document.addEventListener("keydown", (event) => {
+  if (!canOpenEmbeddedEditor()) return;
   if (isShortcut(event, 1)) {
     event.preventDefault();
     window.top.postMessage({ type: "beacon-request-open", target: "primary" }, "*");
@@ -961,6 +1005,7 @@ window.addEventListener("message", (event) => {
   if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
   if (data.target === "secondary") {
     if (data.type === "beacon-request-open") {
+      if (!canOpenEmbeddedEditor()) return;
       requestSettingsOpen();
     } else {
       setSettingsVisible(false);
