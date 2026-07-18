@@ -1,4 +1,4 @@
-const CACHE_VERSION = "2026-07-09-2";
+const CACHE_VERSION = "2026-07-18-2";
 const APP_CACHE = `beacon-app-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `beacon-runtime-${CACHE_VERSION}`;
 const MEDIA_CACHE = `beacon-media-${CACHE_VERSION}`;
@@ -18,9 +18,11 @@ const APP_SHELL = [
   "assets/kiosk-color-picker.js",
   "assets/tiny-pixel-clock-v2.js",
   "assets/triviatimebeaconlogo.png",
+  "assets/icons/clear-night.svg",
   "assets/icons/cloudy.svg",
   "assets/icons/fog.svg",
   "assets/icons/partly-cloudy.svg",
+  "assets/icons/partly-cloudy-night.svg",
   "assets/icons/rain.svg",
   "assets/icons/snow.svg",
   "assets/icons/storm.svg",
@@ -33,14 +35,14 @@ const APP_SHELL = [
   "data/footer.json",
   "data/primaryending.json",
   "data/sync.json",
-  "regions/reg47/data/primary-assets.json",
-  "regions/reg47/data/primary.json",
-  "regions/reg47/data/footer.json",
-  "regions/reg47/data/primaryending.json",
-  "regions/reg47/assets/primary/manifest.json",
-  "regions/reg47/assets/footer/manifest.json",
-  "devices/reg47/index.html",
-  "devices/reg47/nuc-001.html"
+  "regions/reg01/data/primary-assets.json",
+  "regions/reg01/data/primary.json",
+  "regions/reg01/data/footer.json",
+  "regions/reg01/data/primaryending.json",
+  "regions/reg01/assets/primary/manifest.json",
+  "regions/reg01/assets/footer/manifest.json",
+  "devices/reg01/index.html",
+  "devices/reg01/nuc-001.html"
 ];
 
 const MEDIA_EXTENSIONS = new Set([

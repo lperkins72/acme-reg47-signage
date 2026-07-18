@@ -5,8 +5,10 @@ License: MIT, see METEOCONS-LICENSE.txt
 
 Local filename -> Meteocons source file:
 sunny.svg -> fill/clear-day.svg
+clear-night.svg -> fill/clear-night.svg
 cloudy.svg -> fill/cloudy.svg
 partly-cloudy.svg -> fill/partly-cloudy-day.svg
+partly-cloudy-night.svg -> fill/partly-cloudy-night.svg
 rain.svg -> fill/rain.svg
 snow.svg -> fill/snow.svg
 storm.svg -> fill/thunderstorms.svg

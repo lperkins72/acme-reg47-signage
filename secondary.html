@@ -405,7 +405,7 @@ body.settings-open #settingsModal .modal-panel {
   <div id="weatherShift">
     <!-- CURRENT -->
     <div class="segment now">
-      <div class="label">NOW</div>
+      <div class="label" id="currentViewLabel">NOW</div>
       <div class="now-line">
         <div class="temp">
           <span id="currentTemp">--</span><span class="degree">&deg;</span>
@@ -445,6 +445,10 @@ body.settings-open #settingsModal .modal-panel {
 
     <label>Weather Refresh (minutes)
       <input id="weatherRefresh" type="number" min="1" max="120" value="10">
+    </label>
+
+    <label>Forecast Rotate (seconds)
+      <input id="weatherViewRotate" type="number" min="5" max="300" value="20">
     </label>
 
     <div class="section-title">Bar Colors</div>
@@ -545,6 +549,8 @@ const LOCATION_STORAGE_KEY = "beacon_weather_location";
 const WEATHER_REFRESH_KEY = "beacon_weather_refresh";
 const WEATHER_SNAPSHOT_KEY = "beacon_weather_last_success";
 const WEATHER_REFRESH_DEFAULT = 10;
+const WEATHER_VIEW_ROTATE_KEY = "beacon_weather_view_rotate";
+const WEATHER_VIEW_ROTATE_DEFAULT = 20;
 const BAR_COLORS_KEY = "beacon_weather_bar_colors";
 const BAR_INTERVAL_KEY = "beacon_weather_bar_interval";
 const BAR_DEFAULT_INTERVAL = 5;
@@ -575,6 +581,10 @@ let currentZip = DEFAULT_ZIP;
 let currentLocationLabel = "";
 let weatherRefreshMinutes = WEATHER_REFRESH_DEFAULT;
 let weatherRefreshTimer = null;
+let weatherViewRotateSeconds = WEATHER_VIEW_ROTATE_DEFAULT;
+let weatherViewTimer = null;
+let activeWeatherView = "day";
+let weatherViewModel = null;
 let barColors = DEFAULT_BAR_COLORS.map(item => ({ ...item }));
 let barIntervalMinutes = BAR_DEFAULT_INTERVAL;
 let barRotationTimer = null;
@@ -604,6 +614,7 @@ const weatherStatus = document.getElementById("weatherStatus");
 const currentTemp = document.getElementById("currentTemp");
 const currentCondition = document.getElementById("currentCondition");
 const currentIcon = document.getElementById("currentIcon");
+const currentViewLabel = document.getElementById("currentViewLabel");
 let syncClient = null;
 let syncReady = false;
 let syncStatusTimer = null;
@@ -616,21 +627,43 @@ const IS_MODAL_HOST = new URLSearchParams(window.location.search).get("modalHost
 const ICON_MAP = [
   { match: ["thunder"], icon: "storm.svg" },
   { match: ["snow", "sleet"], icon: "snow.svg" },
-  { match: ["rain", "shower"], icon: "rain.svg" },
-  { match: ["fog"], icon: "fog.svg" },
-  { match: ["cloudy"], icon: "cloudy.svg" },
-  { match: ["partly"], icon: "partly-cloudy.svg" },
-  { match: ["sunny", "clear"], icon: "sunny.svg" }
+  { match: ["rain", "shower", "drizzle"], icon: "rain.svg" },
+  { match: ["fog", "mist", "haze", "smoke"], icon: "fog.svg" }
 ];
+const DAY_PARTLY_TERMS = ["partly", "mostly sunny", "few clouds", "a few clouds"];
+const NIGHT_PARTLY_TERMS = ["partly", "mostly clear", "few clouds", "a few clouds"];
+const CLOUDY_TERMS = ["overcast", "mostly cloudy", "cloudy"];
+const DAY_CLEAR_TERMS = ["sunny", "clear", "fair"];
+const NIGHT_CLEAR_TERMS = ["clear", "fair"];
 
-function resolveIcon(text) {
+function includesAny(text, terms) {
+  return terms.some(term => text.includes(term));
+}
+
+function resolveIcon(text, isDaytime = true) {
   if (!text) return "assets/icons/unknown.svg";
   const t = text.toLowerCase();
+
   for (const rule of ICON_MAP) {
-    if (rule.match.some(k => t.includes(k))) {
+    if (includesAny(t, rule.match)) {
       return `assets/icons/${rule.icon}`;
     }
   }
+
+  if (isDaytime) {
+    if (includesAny(t, DAY_PARTLY_TERMS)) return "assets/icons/partly-cloudy.svg";
+  } else {
+    if (includesAny(t, NIGHT_PARTLY_TERMS)) return "assets/icons/partly-cloudy-night.svg";
+  }
+
+  if (includesAny(t, CLOUDY_TERMS)) return "assets/icons/cloudy.svg";
+
+  if (isDaytime) {
+    if (includesAny(t, DAY_CLEAR_TERMS)) return "assets/icons/sunny.svg";
+  } else if (includesAny(t, NIGHT_CLEAR_TERMS)) {
+    return "assets/icons/clear-night.svg";
+  }
+
   return "assets/icons/unknown.svg";
 }
 
@@ -664,9 +697,19 @@ async function loadWeather() {
 }
 
 async function loadCurrentWeather({ forecastHourly, observationStations }) {
-  const observed = await loadCurrentObservation(observationStations);
-  if (observed) return observed;
-  return loadCurrentHourlyForecast(forecastHourly);
+  const [observed, hourly] = await Promise.all([
+    loadCurrentObservation(observationStations),
+    loadCurrentHourlyForecast(forecastHourly)
+  ]);
+
+  if (!observed && !hourly) return null;
+
+  return {
+    temperature: observed?.temperature ?? hourly?.temperature,
+    shortForecast: firstNonEmptyText(observed?.shortForecast, hourly?.shortForecast, "Current Conditions"),
+    isDaytime: hourly?.isDaytime ?? true,
+    name: hourly?.name || "Now"
+  };
 }
 
 async function loadCurrentObservation(observationStations) {
@@ -685,7 +728,7 @@ async function loadCurrentObservation(observationStations) {
 
         return {
           temperature: Math.round((celsius * 9 / 5) + 32),
-          shortForecast: latest.properties.textDescription || "Current Conditions"
+          shortForecast: String(latest.properties.textDescription || "").trim()
         };
       } catch {
         continue;
@@ -708,58 +751,150 @@ async function loadCurrentHourlyForecast(forecastHourly) {
 
     return {
       temperature: period.temperature,
-      shortForecast: period.shortForecast || "Current Conditions"
+      shortForecast: period.shortForecast || "Current Conditions",
+      isDaytime: period.isDaytime !== false,
+      name: period.name || "Now"
     };
   } catch {
     return null;
   }
 }
 
-function renderCurrent(p) {
-  currentTemp.textContent = Math.round(p.temperature);
-  currentCondition.textContent = p.shortForecast;
-  currentIcon.src = resolveIcon(p.shortForecast);
-  applyCurrentConditionLayout(p.shortForecast);
+function firstNonEmptyText(...values) {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text) return text;
+  }
+  return "";
 }
 
-function renderFiveDay(periods) {
-  forecastDays.innerHTML = "";
-  if (!Array.isArray(periods)) return;
-  const days = {};
+function formatDayLabel(period) {
+  return new Date(period.startTime).toLocaleDateString("en-US", { weekday: "short" });
+}
 
-  periods.forEach(p => {
-    const dayKey = p.startTime.split("T")[0];
-    if (!days[dayKey]) days[dayKey] = {};
+function formatNightLabel(period) {
+  if (!period) return "Night";
+  if (/overnight/i.test(period.name || "")) return "Overnight";
+  return `${formatDayLabel(period)} Night`;
+}
 
-    if (p.isDaytime) {
-      days[dayKey].name =
-        new Date(p.startTime).toLocaleDateString("en-US",{weekday:"short"});
-      days[dayKey].high = p.temperature;
-      days[dayKey].cond = p.shortForecast;
+function buildDayCards(periods) {
+  const grouped = {};
+
+  periods.forEach((period) => {
+    const dayKey = period.startTime.split("T")[0];
+    if (!grouped[dayKey]) grouped[dayKey] = { day: null, night: null };
+    if (period.isDaytime) {
+      grouped[dayKey].day = grouped[dayKey].day || period;
     } else {
-      days[dayKey].low = p.temperature;
+      grouped[dayKey].night = grouped[dayKey].night || period;
     }
   });
 
-  Object.values(days)
-    .filter(d => d.high !== undefined && d.low !== undefined)
-    .slice(0,3)
-    .forEach(d => {
+  return Object.values(grouped)
+    .filter((entry) => entry.day)
+    .slice(0, 3)
+    .map((entry) => ({
+      label: formatDayLabel(entry.day),
+      icon: resolveIcon(entry.day.shortForecast, true),
+      tempText: entry.night && Number.isFinite(entry.night.temperature)
+        ? `${entry.day.temperature}\u00b0 / ${entry.night.temperature}\u00b0`
+        : `${entry.day.temperature}\u00b0`
+    }));
+}
+
+function buildNightCards(periods) {
+  return periods
+    .filter((period) => period && period.isDaytime === false)
+    .slice(0, 3)
+    .map((period) => ({
+      label: formatNightLabel(period),
+      icon: resolveIcon(period.shortForecast, false),
+      tempText: Number.isFinite(period.temperature) ? `Low ${period.temperature}\u00b0` : "--"
+    }));
+}
+
+function buildWeatherViewModel(current, periods) {
+  const nightPeriods = periods.filter((period) => period && period.isDaytime === false);
+  const tonightPeriod = nightPeriods[0] || null;
+  const safeCurrent = current || periods[0] || {
+    temperature: NaN,
+    shortForecast: "Current Conditions",
+    isDaytime: true
+  };
+
+  return {
+    day: {
+      label: "NOW",
+      current: safeCurrent,
+      cards: buildDayCards(periods)
+    },
+    night: {
+      label: "TONIGHT",
+      current: tonightPeriod ? {
+        temperature: tonightPeriod.temperature,
+        shortForecast: tonightPeriod.shortForecast || "Tonight",
+        isDaytime: false
+      } : safeCurrent,
+      cards: buildNightCards(periods)
+    }
+  };
+}
+
+function renderCurrentPanel(label, period) {
+  currentViewLabel.textContent = label;
+  currentTemp.textContent = Number.isFinite(period?.temperature) ? Math.round(period.temperature) : "--";
+  currentCondition.textContent = firstNonEmptyText(period?.shortForecast, "Current Conditions");
+  currentIcon.src = resolveIcon(period?.shortForecast, period?.isDaytime !== false);
+  applyCurrentConditionLayout(currentCondition.textContent);
+}
+
+function renderForecastCards(cards) {
+  forecastDays.innerHTML = "";
+  if (!Array.isArray(cards)) return;
+
+  cards.forEach((card) => {
       const el = document.createElement("div");
       el.className = "segment";
       el.innerHTML = `
-        <div class="label">${d.name}</div>
+        <div class="label">${card.label}</div>
         <div class="condition">
-          <img class="weather-icon" src="${resolveIcon(d.cond)}">
-          <span>${d.high}&deg; / ${d.low}&deg;</span>
+          <img class="weather-icon" src="${card.icon}">
+          <span>${card.tempText}</span>
         </div>`;
       forecastDays.appendChild(el);
     });
 }
 
+function renderActiveWeatherView() {
+  if (!weatherViewModel) return;
+  const view = activeWeatherView === "night" ? weatherViewModel.night : weatherViewModel.day;
+  renderCurrentPanel(view.label, view.current);
+  renderForecastCards(view.cards);
+}
+
+function startWeatherViewRotation() {
+  if (weatherViewTimer) {
+    clearInterval(weatherViewTimer);
+    weatherViewTimer = null;
+  }
+
+  renderActiveWeatherView();
+
+  if (!weatherViewModel || !weatherViewModel.day.cards.length || !weatherViewModel.night.cards.length) {
+    return;
+  }
+
+  weatherViewTimer = setInterval(() => {
+    activeWeatherView = activeWeatherView === "day" ? "night" : "day";
+    renderActiveWeatherView();
+  }, weatherViewRotateSeconds * 1000);
+}
+
 function renderWeatherPayload(current, periods) {
-  renderCurrent(current);
-  renderFiveDay(periods);
+  weatherViewModel = buildWeatherViewModel(current, Array.isArray(periods) ? periods : []);
+  activeWeatherView = "day";
+  startWeatherViewRotation();
 }
 
 function setWeatherStatus(message) {
@@ -800,6 +935,13 @@ function formatSnapshotAge(savedAt) {
 }
 
 function renderFallback() {
+  if (weatherViewTimer) {
+    clearInterval(weatherViewTimer);
+    weatherViewTimer = null;
+  }
+  weatherViewModel = null;
+  activeWeatherView = "day";
+  currentViewLabel.textContent = "NOW";
   currentTemp.textContent = "--";
   currentCondition.textContent = "Weather offline";
   currentIcon.src = "assets/icons/unknown.svg";
@@ -1061,6 +1203,7 @@ const zipInput = document.getElementById("zipInput");
 const applyLocation = document.getElementById("applyLocation");
 const locationStatus = document.getElementById("locationStatus");
 const weatherRefreshInput = document.getElementById("weatherRefresh");
+const weatherViewRotateInput = document.getElementById("weatherViewRotate");
 const barIntervalInput = document.getElementById("barInterval");
 const barColorToggles = Array.from(document.querySelectorAll(".bar-color-toggle"));
 const barColorPickers = Array.from(document.querySelectorAll(".bar-color-picker"));
@@ -1300,6 +1443,12 @@ function sanitizeWeatherInterval(value) {
   return Math.max(1, Math.min(120, Math.round(numeric)));
 }
 
+function sanitizeWeatherViewRotateSeconds(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return WEATHER_VIEW_ROTATE_DEFAULT;
+  return Math.max(5, Math.min(300, Math.round(numeric)));
+}
+
 function normalizeBarColors(list) {
   const normalized = [];
   for (let i = 0; i < DEFAULT_BAR_COLORS.length; i += 1) {
@@ -1493,6 +1642,14 @@ function startWeatherRefresh() {
   }, weatherRefreshMinutes * 60 * 1000);
 }
 
+function saveWeatherViewRotation() {
+  localStorage.setItem(WEATHER_VIEW_ROTATE_KEY, String(weatherViewRotateSeconds));
+  startWeatherViewRotation();
+  if (syncClient) {
+    syncClient.commit();
+  }
+}
+
 applyLocation.addEventListener("click", async () => {
   const zip = normalizeZip(zipInput.value);
   if (!zip) {
@@ -1532,6 +1689,12 @@ weatherRefreshInput.addEventListener("change", () => {
   if (syncClient) {
     syncClient.commit();
   }
+});
+
+weatherViewRotateInput.addEventListener("change", () => {
+  weatherViewRotateSeconds = sanitizeWeatherViewRotateSeconds(weatherViewRotateInput.value);
+  weatherViewRotateInput.value = weatherViewRotateSeconds;
+  saveWeatherViewRotation();
 });
 
 barIntervalInput.addEventListener("change", () => {
@@ -1653,6 +1816,7 @@ function exportSyncState() {
       label: currentLocationLabel
     },
     weatherRefreshMinutes,
+    weatherViewRotateSeconds,
     barColors,
     barIntervalMinutes,
     logoPath: logoPathInput.value.trim(),
@@ -1697,6 +1861,13 @@ function applySyncState(state) {
     weatherRefreshInput.value = weatherRefreshMinutes;
     localStorage.setItem(WEATHER_REFRESH_KEY, String(weatherRefreshMinutes));
     startWeatherRefresh();
+  }
+
+  if (state.weatherViewRotateSeconds !== undefined) {
+    weatherViewRotateSeconds = sanitizeWeatherViewRotateSeconds(state.weatherViewRotateSeconds);
+    weatherViewRotateInput.value = weatherViewRotateSeconds;
+    localStorage.setItem(WEATHER_VIEW_ROTATE_KEY, String(weatherViewRotateSeconds));
+    startWeatherViewRotation();
   }
 
   if (Array.isArray(state.barColors)) {
@@ -1794,6 +1965,9 @@ loadLogoSettings();
 const storedRefresh = localStorage.getItem(WEATHER_REFRESH_KEY);
 weatherRefreshMinutes = sanitizeWeatherInterval(storedRefresh || WEATHER_REFRESH_DEFAULT);
 weatherRefreshInput.value = weatherRefreshMinutes;
+const storedWeatherViewRotate = localStorage.getItem(WEATHER_VIEW_ROTATE_KEY);
+weatherViewRotateSeconds = sanitizeWeatherViewRotateSeconds(storedWeatherViewRotate || WEATHER_VIEW_ROTATE_DEFAULT);
+weatherViewRotateInput.value = weatherViewRotateSeconds;
 startWeatherRefresh();
 
 const storedShiftStrength = localStorage.getItem(SHIFT_STRENGTH_KEY) || "5";
@@ -1831,6 +2005,10 @@ window.addEventListener("beforeunload", () => {
   if (weatherRefreshTimer) {
     clearInterval(weatherRefreshTimer);
     weatherRefreshTimer = null;
+  }
+  if (weatherViewTimer) {
+    clearInterval(weatherViewTimer);
+    weatherViewTimer = null;
   }
   if (barRotationTimer) {
     clearInterval(barRotationTimer);
