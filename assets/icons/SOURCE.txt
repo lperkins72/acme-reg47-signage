@@ -1,0 +1,14 @@
+﻿Meteocons animated SVG icons copied from @meteocons/svg 0.1.0.
+Source: https://github.com/basmilius/meteocons
+Website: https://meteocons.com/
+License: MIT, see METEOCONS-LICENSE.txt
+
+Local filename -> Meteocons source file:
+sunny.svg -> fill/clear-day.svg
+cloudy.svg -> fill/cloudy.svg
+partly-cloudy.svg -> fill/partly-cloudy-day.svg
+rain.svg -> fill/rain.svg
+snow.svg -> fill/snow.svg
+storm.svg -> fill/thunderstorms.svg
+fog.svg -> fill/fog.svg
+unknown.svg -> fill/weather-alarm.svg
