@@ -98,6 +98,27 @@
       display: block;
     }
 
+    .main-sponsor-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      z-index: 1200;
+    }
+
+    .main-sponsor-overlay.is-active {
+      display: flex;
+    }
+
+    .main-sponsor-overlay video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000000;
+    }
+
     .system-status {
       position: fixed;
       top: 10px;
@@ -133,6 +154,9 @@
 </head>
 <body>
   <div class="system-status" id="systemStatus" role="status" aria-live="polite"></div>
+  <div class="main-sponsor-overlay" id="mainSponsorOverlay" aria-hidden="true">
+    <video id="mainSponsorVideo" muted playsinline></video>
+  </div>
   <iframe class="zone" id="primaryFrame" src="primary.html" title="Primary Zone" scrolling="no"></iframe>
   <iframe class="zone" id="secondaryFrame" src="secondary.html" title="Secondary Zone" scrolling="no"></iframe>
   <iframe class="zone" id="footerFrame" src="footer.html" title="Footer Zone" scrolling="no"></iframe>
@@ -159,7 +183,12 @@
       overlay: document.getElementById("overlayFrame"),
       modalHost: document.getElementById("modalHostFrame")
     };
+    const mainSponsorOverlay = document.getElementById("mainSponsorOverlay");
+    const mainSponsorVideo = document.getElementById("mainSponsorVideo");
     const AUTO_RELOAD_KEY = "beacon_auto_reload_minutes";
+    const MAIN_SPONSOR_VIDEO_KEY = "beacon_main_sponsor_video";
+    const MAIN_SPONSOR_INTERVAL_KEY = "beacon_main_sponsor_interval";
+    const ASSET_VERSION_URL = "data/primary-assets.json";
     const HEARTBEAT_POLICY_STORAGE_KEY = "bdn_region_heartbeat_policy_v1";
     const DEFAULT_HEARTBEAT_POLICY = {
       dayStartTime: "08:00",
@@ -184,6 +213,11 @@
     let networkReachable = navigator.onLine !== false;
     let heartbeatApiBase = "";
     let heartbeatPolicy = { ...DEFAULT_HEARTBEAT_POLICY };
+    let assetVersion = "";
+    let mainSponsorVideoPath = "";
+    let mainSponsorInterval = 0;
+    let mainSponsorTimer = null;
+    let mainSponsorActive = false;
     const syncStatuses = {};
 
     async function loadControlPlaneConfig() {
@@ -192,6 +226,136 @@
         return;
       }
       heartbeatApiBase = await window.beaconRuntimeConfig.getHeartbeatUrl();
+    }
+
+    async function loadAssetVersion() {
+      try {
+        const response = await fetch(`${ASSET_VERSION_URL}?beacon-assets=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Missing asset version");
+        }
+        const data = await response.json();
+        assetVersion = data && data.version !== undefined && data.version !== null
+          ? String(data.version).trim()
+          : "";
+      } catch {
+        assetVersion = "";
+      }
+    }
+
+    function sanitizeMainSponsorInterval(value) {
+      const numeric = Number(value);
+      return numeric === 15 || numeric === 30 || numeric === 60 ? numeric : 0;
+    }
+
+    function isMainSponsorConfigured() {
+      return Boolean(
+        sanitizeMainSponsorInterval(mainSponsorInterval)
+        && mainSponsorVideoPath
+        && mainSponsorVideoPath !== "assets/"
+      );
+    }
+
+    function resolveSponsorAssetUrl(src) {
+      if (!assetVersion || !src) return src;
+      try {
+        const url = new URL(src, window.location.href);
+        url.searchParams.set("v", assetVersion);
+        return url.toString();
+      } catch {
+        const joiner = src.includes("?") ? "&" : "?";
+        return `${src}${joiner}v=${encodeURIComponent(assetVersion)}`;
+      }
+    }
+
+    function clearMainSponsorTimer() {
+      if (mainSponsorTimer) {
+        clearTimeout(mainSponsorTimer);
+        mainSponsorTimer = null;
+      }
+    }
+
+    function getNextMainSponsorBoundary(interval, now = new Date()) {
+      const next = new Date(now);
+      next.setSeconds(0, 0);
+      if (now.getSeconds() !== 0 || now.getMilliseconds() !== 0) {
+        next.setMinutes(next.getMinutes() + 1);
+      }
+      const remainder = next.getMinutes() % interval;
+      if (remainder !== 0) {
+        next.setMinutes(next.getMinutes() + (interval - remainder));
+      }
+      return next.getTime();
+    }
+
+    function cleanupMainSponsorPlayback() {
+      mainSponsorVideo.pause();
+      mainSponsorVideo.removeAttribute("src");
+      mainSponsorVideo.load();
+      mainSponsorOverlay.classList.remove("is-active");
+      mainSponsorOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function scheduleMainSponsorPlayback() {
+      clearMainSponsorTimer();
+      if (mainSponsorActive || !isMainSponsorConfigured()) return;
+
+      const nextRunAt = getNextMainSponsorBoundary(mainSponsorInterval);
+      const delay = Math.max(0, nextRunAt - Date.now());
+      mainSponsorTimer = setTimeout(() => {
+        mainSponsorTimer = null;
+        startMainSponsorPlayback();
+      }, delay);
+    }
+
+    function updateMainSponsorSettings(video, interval, options = {}) {
+      mainSponsorVideoPath = String(video || "").trim();
+      mainSponsorInterval = sanitizeMainSponsorInterval(interval);
+
+      if (options.persist !== false) {
+        localStorage.setItem(MAIN_SPONSOR_VIDEO_KEY, mainSponsorVideoPath);
+        localStorage.setItem(MAIN_SPONSOR_INTERVAL_KEY, String(mainSponsorInterval));
+      }
+
+      scheduleMainSponsorPlayback();
+    }
+
+    function loadMainSponsorSettings() {
+      updateMainSponsorSettings(
+        localStorage.getItem(MAIN_SPONSOR_VIDEO_KEY) || "",
+        localStorage.getItem(MAIN_SPONSOR_INTERVAL_KEY) || 0,
+        {
+          persist: false
+        }
+      );
+    }
+
+    function finishMainSponsorPlayback() {
+      const wasActive = mainSponsorActive;
+      cleanupMainSponsorPlayback();
+      mainSponsorActive = false;
+      if (wasActive) {
+        frames.primary.contentWindow?.postMessage({ type: "beacon-primary-resume" }, "*");
+      }
+      scheduleMainSponsorPlayback();
+    }
+
+    function startMainSponsorPlayback() {
+      if (mainSponsorActive || !isMainSponsorConfigured()) {
+        scheduleMainSponsorPlayback();
+        return;
+      }
+
+      mainSponsorActive = true;
+      mainSponsorOverlay.classList.add("is-active");
+      mainSponsorOverlay.setAttribute("aria-hidden", "false");
+      frames.primary.contentWindow?.postMessage({ type: "beacon-primary-pause" }, "*");
+
+      mainSponsorVideo.src = resolveSponsorAssetUrl(mainSponsorVideoPath);
+      mainSponsorVideo.currentTime = 0;
+      mainSponsorVideo.play().catch(() => {
+        finishMainSponsorPlayback();
+      });
     }
 
     function registerServiceWorker() {
@@ -554,6 +718,23 @@
       return { tenant, region, device };
     }
 
+    function notifyPortalPinChanged(pinned) {
+      const info = getHeartbeatInfo();
+      if (!info || !window.opener || window.opener === window) return;
+      try {
+        window.opener.postMessage({
+          type: "bdn-portal-primary-pin-ack",
+          tenant: info.tenant,
+          region: info.region,
+          device: info.device,
+          pinned: Boolean(pinned),
+          ts: Date.now()
+        }, "*");
+      } catch {
+        // Portal ack is advisory only.
+      }
+    }
+
     function buildHeartbeatPayload(info) {
       const schedule = getHeartbeatSchedule(heartbeatPolicy);
       return {
@@ -653,6 +834,14 @@
       scheduleNextHeartbeat();
     }
 
+    mainSponsorVideo.addEventListener("ended", () => {
+      finishMainSponsorPlayback();
+    });
+
+    mainSponsorVideo.addEventListener("error", () => {
+      finishMainSponsorPlayback();
+    });
+
     function isShortcut(event, digit) {
       if (!event.ctrlKey || !event.shiftKey) return false;
       if (event.code === `Digit${digit}` || event.code === `Numpad${digit}`) return true;
@@ -690,9 +879,38 @@
       return isTrustedEditorContext();
     }
 
+    function isTrustedPortalMessage(event) {
+      const origin = String(event.origin || "");
+      if (origin === "null") return true;
+      try {
+        const url = new URL(origin);
+        const hostname = String(url.hostname || "").toLowerCase();
+        return hostname === "localhost"
+          || hostname === "127.0.0.1"
+          || hostname === "bdn-client-portal.pages.dev"
+          || hostname.endsWith(".bdn-client-portal.pages.dev");
+      } catch {
+        return false;
+      }
+    }
+
     window.addEventListener("message", (event) => {
       const data = event.data;
       if (!data) return;
+
+      if (data.type === "beacon-main-sponsor") {
+        updateMainSponsorSettings(data.video, data.interval);
+        return;
+      }
+
+      if (data.type === "bdn-portal-primary-pin") {
+        if (!isTrustedPortalMessage(event)) return;
+        frames.primary.contentWindow?.postMessage({
+          type: "bdn-portal-primary-pin",
+          pinned: Boolean(data.pinned)
+        }, "*");
+        return;
+      }
 
       if (data.type === "beacon-auto-reload") {
         autoReloadMinutes = sanitizeReloadMinutes(data.minutes);
@@ -714,6 +932,15 @@
 
       if (data.type === "beacon-footer-state-updated" || data.type === "beacon-overlay-refresh") {
         frames.overlay.contentWindow?.postMessage({ type: "beacon-overlay-refresh" }, "*");
+        return;
+      }
+
+      if (data.type === "beacon-primary-pin-changed") {
+        setTransientStatus(Boolean(data.pinned)
+          ? "Primary playlist pinned on this NUC."
+          : "Primary playlist returned to region default.");
+        notifyPortalPinChanged(Boolean(data.pinned));
+        void sendHeartbeat();
         return;
       }
 
@@ -781,6 +1008,10 @@
         loadAutoReloadSetting();
         return;
       }
+      if (event.key === MAIN_SPONSOR_VIDEO_KEY || event.key === MAIN_SPONSOR_INTERVAL_KEY) {
+        loadMainSponsorSettings();
+        return;
+      }
       if (event.key === HEARTBEAT_POLICY_STORAGE_KEY) {
         loadHeartbeatPolicySetting();
         scheduleNextHeartbeat();
@@ -820,6 +1051,8 @@
     (async () => {
       registerServiceWorker();
       loadAutoReloadSetting();
+      await loadAssetVersion();
+      loadMainSponsorSettings();
       loadHeartbeatPolicySetting();
       await loadControlPlaneConfig();
       startHeartbeat();

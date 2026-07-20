@@ -73,6 +73,30 @@
       z-index: 2;
     }
 
+    .trivia-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      background: #000000;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .trivia-overlay.is-active {
+      display: block;
+    }
+
+    .trivia-overlay-media {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      object-fit: contain;
+      background: #000000;
+      display: none;
+    }
+
     .media-placeholder {
       position: absolute;
       inset: 0;
@@ -86,14 +110,21 @@
       z-index: 3;
     }
 
+    .primary-ending-shell {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+      height: 100%;
+      background: #000000;
+      overflow: hidden;
+    }
+
     .primary-ending {
       width: 100%;
       height: 100%;
       border: 0;
       display: block;
       background: #000000;
-      flex: 1 1 auto;
-      min-width: 0;
     }
 
     body.trivia-settings-open {
@@ -104,12 +135,19 @@
       display: none;
     }
 
-    body.trivia-settings-open .primary-ending {
+    body.trivia-settings-open .primary-ending-shell {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       flex: none;
+    }
+
+    body.trivia-settings-open .primary-ending {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
 
     #settingsModal {
@@ -245,6 +283,29 @@
       width: 100%;
     }
 
+    #settingsModal .modal-panel .inline-options {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    #settingsModal .modal-panel .inline-options .inline-label {
+      margin-bottom: 0;
+    }
+
+    #settingsModal .modal-panel .hint-text {
+      font-size: 12px;
+      color: #aab3bd;
+      margin: -2px 0 10px;
+    }
+
+    #settingsModal .modal-panel .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
     #settingsModal .modal-panel .playlist-items {
       display: flex;
       flex-direction: column;
@@ -293,7 +354,14 @@
     </div>
   </section>
 
-  <iframe class="primary-ending" id="primaryEndingFrame" src="primaryending.html" title="Trivia Panel" scrolling="no"></iframe>
+  <div class="primary-ending-shell">
+    <iframe class="primary-ending" id="primaryEndingFrame" src="primaryending.html" title="Trivia Panel" scrolling="no"></iframe>
+    <div class="trivia-overlay" id="triviaOverlay" aria-hidden="true">
+      <img id="triviaOverlayImage" class="trivia-overlay-media" alt="">
+      <video id="triviaOverlayVideo" class="trivia-overlay-media" muted playsinline loop></video>
+      <iframe id="triviaOverlayFrame" class="trivia-overlay-media" title="Trivia Sponsor Overlay" tabindex="-1"></iframe>
+    </div>
+  </div>
 
   <div id="settingsModal">
     <div class="modal-panel">
@@ -331,6 +399,55 @@
         <input id="dissolveDuration" type="number" min="0.2" max="5" step="0.1" value="1">
       </label>
 
+      <div class="section-title">Main Sponsor Play</div>
+      <label>Sponsor Video Path
+        <input id="sponsorVideoInput" type="text" placeholder="assets/promo.mp4">
+      </label>
+      <div class="hint-text">Schedule aligns to local wall-clock quarter and hour boundaries.</div>
+      <div class="inline-options">
+        <label class="inline-label">
+          <input id="sponsorInterval15" type="checkbox">
+          Every 15 min
+        </label>
+        <label class="inline-label">
+          <input id="sponsorInterval30" type="checkbox">
+          Every 30 min
+        </label>
+        <label class="inline-label">
+          <input id="sponsorInterval60" type="checkbox">
+          Every 60 min
+        </label>
+      </div>
+      <button id="saveSponsorSettings" type="button">Save Sponsor Settings</button>
+
+      <div class="section-title">Trivia Sponsor Overlay</div>
+      <label class="inline-label">
+        <input id="overlayEnabledToggle" type="checkbox">
+        Enable trivia sponsor overlay
+      </label>
+      <div class="settings-grid">
+        <label>Overlay Type
+          <select id="overlayTypeSelect">
+            <option value="image">image</option>
+            <option value="video">video</option>
+            <option value="iframe">iframe</option>
+          </select>
+        </label>
+        <label>Duration (sec)
+          <select id="overlayDurationSelect">
+            <option value="22">22</option>
+            <option value="44">44</option>
+            <option value="66">66</option>
+          </select>
+        </label>
+      </div>
+      <label>Overlay Source
+        <input id="overlaySourceInput" type="text" placeholder="assets/overlay.png">
+      </label>
+      <button id="addOverlayItem" type="button">Add Overlay Item</button>
+      <div class="hint-text">Each active item is followed by a fixed 154 second gap.</div>
+      <div class="playlist-items" id="overlayPlaylistItems"></div>
+
       <div class="section-title">Sync</div>
       <label class="inline-label">
         <input id="playlistPinToggle" type="checkbox">
@@ -363,6 +480,15 @@
     const DISSOLVE_MIN_SECONDS = 0.2;
     const DISSOLVE_MAX_SECONDS = 5;
     const DISSOLVE_DEFAULT_SECONDS = 1;
+    const MAIN_SPONSOR_VIDEO_KEY = "beacon_main_sponsor_video";
+    const MAIN_SPONSOR_INTERVAL_KEY = "beacon_main_sponsor_interval";
+    const TRIVIA_OVERLAY_PLAYLIST_KEY = "beacon_trivia_overlay_playlist";
+    const TRIVIA_OVERLAY_ENABLED_KEY = "beacon_trivia_overlay_enabled";
+    const TRIVIA_OVERLAY_START_EPOCH_KEY = "beacon_trivia_overlay_start_epoch";
+    const TRIVIA_START_EPOCH = Date.parse("2025-01-01T00:00:00Z");
+    const TRIVIA_CYCLE_SECONDS = 22;
+    const OVERLAY_ALLOWED_DURATIONS = [22, 44, 66];
+    const OVERLAY_GAP_SECONDS = 154;
     const LOG_STORAGE_KEY = "beacon_primary_playback_log";
     const LOG_MAX_ENTRIES = 2000;
     const LOG_FILE_NAME = "primary-playback-log.csv";
@@ -380,6 +506,10 @@
     const mediaVideo = document.getElementById("mediaVideo");
     const mediaPlaceholder = document.getElementById("mediaPlaceholder");
     const mediaFrame = document.querySelector(".media-frame");
+    const triviaOverlay = document.getElementById("triviaOverlay");
+    const triviaOverlayImage = document.getElementById("triviaOverlayImage");
+    const triviaOverlayVideo = document.getElementById("triviaOverlayVideo");
+    const triviaOverlayFrame = document.getElementById("triviaOverlayFrame");
     const settingsModal = document.getElementById("settingsModal");
     const primaryEndingFrame = document.getElementById("primaryEndingFrame");
 
@@ -394,6 +524,17 @@
     const playlistPinStatus = document.getElementById("playlistPinStatus");
     const dissolveToggle = document.getElementById("dissolveToggle");
     const dissolveDurationInput = document.getElementById("dissolveDuration");
+    const sponsorVideoInput = document.getElementById("sponsorVideoInput");
+    const sponsorInterval15 = document.getElementById("sponsorInterval15");
+    const sponsorInterval30 = document.getElementById("sponsorInterval30");
+    const sponsorInterval60 = document.getElementById("sponsorInterval60");
+    const saveSponsorSettingsButton = document.getElementById("saveSponsorSettings");
+    const overlayEnabledToggle = document.getElementById("overlayEnabledToggle");
+    const overlayTypeSelect = document.getElementById("overlayTypeSelect");
+    const overlaySourceInput = document.getElementById("overlaySourceInput");
+    const overlayDurationSelect = document.getElementById("overlayDurationSelect");
+    const addOverlayItemButton = document.getElementById("addOverlayItem");
+    const overlayPlaylistItems = document.getElementById("overlayPlaylistItems");
     const downloadLogButton = document.getElementById("downloadLog");
     const clearLogButton = document.getElementById("clearLog");
     const logStatus = document.getElementById("logStatus");
@@ -415,7 +556,21 @@
     let playlistPinned = false;
     let playbackLog = [];
     let syncClient = null;
+    let syncBaseUrl = "";
+    let activeSyncScope = "";
+    let pinPollTimer = null;
     let assetVersion = "";
+    let mainSponsorVideo = "";
+    let mainSponsorInterval = 0;
+    let triviaOverlayEnabled = false;
+    let triviaOverlayPlaylist = [];
+    let triviaOverlayStartEpoch = 0;
+    let triviaOverlayTimer = null;
+    let triviaOverlayStateKey = "off";
+    let primaryPlaybackPaused = false;
+    let pausedPlaybackRemainingMs = 0;
+    let currentItemTotalMs = 0;
+    let currentItemStartedAt = 0;
 
     function notifyParent(target, open) {
       if (!window.parent) return;
@@ -520,6 +675,10 @@
         ...window.beaconContentPaths.buildLayeredPaths(ASSET_VERSION_URL)
       ]);
       manifestItems.forEach((item) => {
+        urls.add(item.src);
+        urls.add(resolveAssetUrl(item.src));
+      });
+      triviaOverlayPlaylist.forEach((item) => {
         urls.add(item.src);
         urls.add(resolveAssetUrl(item.src));
       });
@@ -697,7 +856,7 @@
     function savePlaylists() {
       localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(playlists));
       localStorage.setItem(ACTIVE_PLAYLIST_KEY, activePlaylistName);
-      if (syncClient && !playlistPinned) {
+      if (syncClient) {
         syncClient.commit();
       }
     }
@@ -717,16 +876,614 @@
       updatePlaylistPinStatus();
     }
 
-    function setPlaylistPinned(pinned) {
-      playlistPinned = Boolean(pinned);
+    function commitPrimarySyncState(forceNow = false) {
+      if (!syncClient) return;
+      if (forceNow && typeof syncClient.commitNow === "function") {
+        syncClient.commitNow();
+        return;
+      }
+      syncClient.commit();
+    }
+
+    function sanitizeMainSponsorInterval(value) {
+      const numeric = Number(value);
+      return numeric === 15 || numeric === 30 || numeric === 60 ? numeric : 0;
+    }
+
+    function normalizeMainSponsorPath(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "assets/";
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (raw.startsWith("assets/")) return raw;
+      if (!raw.includes("/")) return `assets/${raw}`;
+      return raw;
+    }
+
+    function trimStoredPath(value) {
+      return String(value || "").trim();
+    }
+
+    function getSelectedMainSponsorInterval() {
+      if (sponsorInterval15.checked) return 15;
+      if (sponsorInterval30.checked) return 30;
+      if (sponsorInterval60.checked) return 60;
+      return 0;
+    }
+
+    function setSelectedMainSponsorInterval(interval) {
+      sponsorInterval15.checked = interval === 15;
+      sponsorInterval30.checked = interval === 30;
+      sponsorInterval60.checked = interval === 60;
+    }
+
+    function applyMainSponsorSettings(video, interval, options = {}) {
+      const nextVideo = options.normalizeVideo ? normalizeMainSponsorPath(video) : trimStoredPath(video);
+      const nextInterval = sanitizeMainSponsorInterval(interval);
+      mainSponsorVideo = nextVideo;
+      mainSponsorInterval = nextInterval;
+      sponsorVideoInput.value = nextVideo;
+      setSelectedMainSponsorInterval(nextInterval);
+
+      if (options.persist !== false) {
+        localStorage.setItem(MAIN_SPONSOR_VIDEO_KEY, nextVideo);
+        localStorage.setItem(MAIN_SPONSOR_INTERVAL_KEY, String(nextInterval));
+      }
+
+      if (options.notify !== false) {
+        window.parent?.postMessage({
+          type: "beacon-main-sponsor",
+          interval: nextInterval,
+          video: nextVideo
+        }, "*");
+      }
+
+      if (options.commit) {
+        commitPrimarySyncState();
+      }
+    }
+
+    function saveMainSponsorSettings() {
+      applyMainSponsorSettings(sponsorVideoInput.value, getSelectedMainSponsorInterval(), {
+        normalizeVideo: true,
+        persist: true,
+        notify: true,
+        commit: true
+      });
+    }
+
+    function loadMainSponsorSettings() {
+      applyMainSponsorSettings(
+        localStorage.getItem(MAIN_SPONSOR_VIDEO_KEY) || "",
+        localStorage.getItem(MAIN_SPONSOR_INTERVAL_KEY) || 0,
+        {
+          persist: false,
+          notify: true
+        }
+      );
+    }
+
+    function normalizeTriviaOverlaySource(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (raw.startsWith("assets/")) return raw;
+      if (raw.includes("/")) return raw;
+      return `assets/${raw}`;
+    }
+
+    function inferTriviaOverlayType(src) {
+      const cleanSrc = String(src || "").split(/[?#]/, 1)[0];
+      const ext = cleanSrc.includes(".") ? cleanSrc.split(".").pop().toLowerCase() : "";
+      if (["mp4", "webm", "ogg"].includes(ext)) return "video";
+      if (["html", "htm"].includes(ext)) return "iframe";
+      return "image";
+    }
+
+    function normalizeTriviaOverlayType(type, src) {
+      const normalized = String(type || "").trim().toLowerCase();
+      if (normalized === "image" || normalized === "video" || normalized === "iframe") {
+        return normalized;
+      }
+      return inferTriviaOverlayType(src);
+    }
+
+    function normalizeTriviaOverlayDuration(value) {
+      const numeric = Number(value);
+      return OVERLAY_ALLOWED_DURATIONS.includes(numeric) ? numeric : OVERLAY_ALLOWED_DURATIONS[0];
+    }
+
+    function sanitizeTriviaOverlayItem(item) {
+      if (!item) return null;
+      const src = normalizeTriviaOverlaySource(item.src);
+      if (!src) return null;
+      return {
+        src,
+        type: normalizeTriviaOverlayType(item.type, src),
+        durationSeconds: normalizeTriviaOverlayDuration(item.durationSeconds)
+      };
+    }
+
+    function getNextTriviaBoundaryTimestamp(nowMs = Date.now()) {
+      if (nowMs <= TRIVIA_START_EPOCH) return TRIVIA_START_EPOCH;
+      const cycleMs = TRIVIA_CYCLE_SECONDS * 1000;
+      const elapsedMs = nowMs - TRIVIA_START_EPOCH;
+      const cycles = Math.ceil(elapsedMs / cycleMs);
+      return TRIVIA_START_EPOCH + (cycles * cycleMs);
+    }
+
+    function persistTriviaOverlaySettings() {
+      localStorage.setItem(TRIVIA_OVERLAY_ENABLED_KEY, String(triviaOverlayEnabled));
+      localStorage.setItem(TRIVIA_OVERLAY_PLAYLIST_KEY, JSON.stringify(triviaOverlayPlaylist));
+      localStorage.setItem(TRIVIA_OVERLAY_START_EPOCH_KEY, String(triviaOverlayStartEpoch || 0));
+    }
+
+    function clearTriviaOverlayMedia() {
+      triviaOverlayImage.style.display = "none";
+      triviaOverlayImage.removeAttribute("src");
+      triviaOverlayVideo.pause();
+      triviaOverlayVideo.style.display = "none";
+      triviaOverlayVideo.removeAttribute("src");
+      triviaOverlayVideo.load();
+      triviaOverlayFrame.style.display = "none";
+      triviaOverlayFrame.removeAttribute("src");
+    }
+
+    function hideTriviaOverlay() {
+      triviaOverlay.classList.remove("is-active");
+      triviaOverlay.setAttribute("aria-hidden", "true");
+      clearTriviaOverlayMedia();
+    }
+
+    function showTriviaOverlayItem(item) {
+      clearTriviaOverlayMedia();
+      const resolvedSrc = resolveAssetUrl(item.src);
+      triviaOverlay.classList.add("is-active");
+      triviaOverlay.setAttribute("aria-hidden", "false");
+
+      if (item.type === "video") {
+        triviaOverlayVideo.src = resolvedSrc;
+        triviaOverlayVideo.style.display = "block";
+        triviaOverlayVideo.currentTime = 0;
+        triviaOverlayVideo.play().catch(() => {
+          // Ignore autoplay failures for overlay playback.
+        });
+        return;
+      }
+
+      if (item.type === "iframe") {
+        triviaOverlayFrame.src = resolvedSrc;
+        triviaOverlayFrame.style.display = "block";
+        return;
+      }
+
+      triviaOverlayImage.src = resolvedSrc;
+      triviaOverlayImage.style.display = "block";
+    }
+
+    function getTriviaOverlayRuntimeState(nowMs = Date.now()) {
+      if (!triviaOverlayEnabled || !triviaOverlayPlaylist.length) {
+        return { key: "off", item: null, index: -1 };
+      }
+
+      if (!Number.isFinite(triviaOverlayStartEpoch) || triviaOverlayStartEpoch < TRIVIA_START_EPOCH || nowMs < triviaOverlayStartEpoch) {
+        return { key: "off", item: null, index: -1 };
+      }
+
+      const elapsedSeconds = Math.floor((nowMs - triviaOverlayStartEpoch) / 1000);
+      const cycleLengthSeconds = triviaOverlayPlaylist.reduce(
+        (sum, item) => sum + item.durationSeconds + OVERLAY_GAP_SECONDS,
+        0
+      );
+
+      if (!cycleLengthSeconds) {
+        return { key: "off", item: null, index: -1 };
+      }
+
+      let cursor = elapsedSeconds % cycleLengthSeconds;
+      for (let index = 0; index < triviaOverlayPlaylist.length; index += 1) {
+        const item = triviaOverlayPlaylist[index];
+        if (cursor < item.durationSeconds) {
+          return { key: `on-${index}`, item, index };
+        }
+        cursor -= item.durationSeconds;
+        if (cursor < OVERLAY_GAP_SECONDS) {
+          return { key: "off", item: null, index: -1 };
+        }
+        cursor -= OVERLAY_GAP_SECONDS;
+      }
+
+      return { key: "off", item: null, index: -1 };
+    }
+
+    function updateTriviaOverlayRuntime() {
+      const nextState = getTriviaOverlayRuntimeState();
+      if (nextState.key === triviaOverlayStateKey) return;
+      triviaOverlayStateKey = nextState.key;
+      if (nextState.key === "off") {
+        hideTriviaOverlay();
+        return;
+      }
+      showTriviaOverlayItem(nextState.item);
+    }
+
+    function refreshTriviaOverlayScheduler() {
+      if (triviaOverlayTimer) {
+        clearInterval(triviaOverlayTimer);
+        triviaOverlayTimer = null;
+      }
+
+      triviaOverlayStateKey = "";
+
+      if (triviaOverlayEnabled && triviaOverlayPlaylist.length && (!Number.isFinite(triviaOverlayStartEpoch) || triviaOverlayStartEpoch < TRIVIA_START_EPOCH)) {
+        triviaOverlayStartEpoch = getNextTriviaBoundaryTimestamp(Date.now());
+        localStorage.setItem(TRIVIA_OVERLAY_START_EPOCH_KEY, String(triviaOverlayStartEpoch));
+      }
+
+      if (!triviaOverlayEnabled || !triviaOverlayPlaylist.length) {
+        hideTriviaOverlay();
+        return;
+      }
+
+      updateTriviaOverlayRuntime();
+      triviaOverlayTimer = setInterval(updateTriviaOverlayRuntime, 500);
+    }
+
+    function renderTriviaOverlayPlaylist() {
+      overlayPlaylistItems.innerHTML = "";
+
+      if (!triviaOverlayPlaylist.length) {
+        const empty = document.createElement("div");
+        empty.className = "item-name";
+        empty.textContent = "No overlay items configured.";
+        overlayPlaylistItems.appendChild(empty);
+        return;
+      }
+
+      triviaOverlayPlaylist.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "playlist-item";
+        row.dataset.index = String(index);
+
+        const name = document.createElement("div");
+        name.className = "item-name";
+        name.textContent = `${getFileName(item.src)} (${item.type})`;
+
+        const duration = document.createElement("select");
+        duration.className = "item-duration";
+        duration.dataset.index = String(index);
+        OVERLAY_ALLOWED_DURATIONS.forEach((seconds) => {
+          const option = document.createElement("option");
+          option.value = String(seconds);
+          option.textContent = String(seconds);
+          option.selected = item.durationSeconds === seconds;
+          duration.appendChild(option);
+        });
+
+        const actions = document.createElement("div");
+        actions.className = "item-actions";
+
+        const upButton = document.createElement("button");
+        upButton.type = "button";
+        upButton.textContent = "Up";
+        upButton.dataset.action = "up";
+        upButton.dataset.index = String(index);
+
+        const downButton = document.createElement("button");
+        downButton.type = "button";
+        downButton.textContent = "Down";
+        downButton.dataset.action = "down";
+        downButton.dataset.index = String(index);
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "Remove";
+        removeButton.dataset.action = "remove";
+        removeButton.dataset.index = String(index);
+
+        actions.appendChild(upButton);
+        actions.appendChild(downButton);
+        actions.appendChild(removeButton);
+
+        row.appendChild(name);
+        row.appendChild(duration);
+        row.appendChild(actions);
+        overlayPlaylistItems.appendChild(row);
+      });
+    }
+
+    function applyTriviaOverlaySettings(nextState = {}, options = {}) {
+      triviaOverlayEnabled = Boolean(nextState.enabled);
+      triviaOverlayPlaylist = Array.isArray(nextState.playlist)
+        ? nextState.playlist.map(sanitizeTriviaOverlayItem).filter(Boolean)
+        : [];
+      const nextEpoch = Number(nextState.startEpoch);
+      triviaOverlayStartEpoch = Number.isFinite(nextEpoch) ? nextEpoch : 0;
+
+      if (triviaOverlayEnabled && triviaOverlayStartEpoch < TRIVIA_START_EPOCH) {
+        triviaOverlayStartEpoch = getNextTriviaBoundaryTimestamp(Date.now());
+      }
+
+      overlayEnabledToggle.checked = triviaOverlayEnabled;
+
+      if (options.persist !== false) {
+        persistTriviaOverlaySettings();
+      }
+      if (options.render !== false) {
+        renderTriviaOverlayPlaylist();
+      }
+      if (options.restart !== false) {
+        refreshTriviaOverlayScheduler();
+      }
+      if (options.commit) {
+        commitPrimarySyncState();
+      }
+    }
+
+    function loadTriviaOverlaySettings() {
+      let playlist = [];
+      try {
+        const stored = JSON.parse(localStorage.getItem(TRIVIA_OVERLAY_PLAYLIST_KEY) || "[]");
+        if (Array.isArray(stored)) {
+          playlist = stored;
+        }
+      } catch {
+        playlist = [];
+      }
+
+      applyTriviaOverlaySettings({
+        enabled: localStorage.getItem(TRIVIA_OVERLAY_ENABLED_KEY) === "true",
+        playlist,
+        startEpoch: Number(localStorage.getItem(TRIVIA_OVERLAY_START_EPOCH_KEY) || 0)
+      }, {
+        persist: false
+      });
+    }
+
+    function addTriviaOverlayItem() {
+      const src = normalizeTriviaOverlaySource(overlaySourceInput.value);
+      if (!src) return;
+
+      triviaOverlayPlaylist.push({
+        src,
+        type: normalizeTriviaOverlayType(overlayTypeSelect.value, src),
+        durationSeconds: normalizeTriviaOverlayDuration(overlayDurationSelect.value)
+      });
+
+      overlaySourceInput.value = "";
+      applyTriviaOverlaySettings({
+        enabled: triviaOverlayEnabled,
+        playlist: triviaOverlayPlaylist,
+        startEpoch: triviaOverlayStartEpoch
+      }, {
+        commit: true
+      });
+    }
+
+    function getCurrentPlaybackRemainingMs() {
+      if (!currentItem || !Number.isFinite(currentItemTotalMs) || !Number.isFinite(currentItemStartedAt)) {
+        return 0;
+      }
+      return Math.max(0, currentItemTotalMs - (Date.now() - currentItemStartedAt));
+    }
+
+    function pausePrimaryPlaybackForSponsor() {
+      if (primaryPlaybackPaused || !currentItem) return;
+      primaryPlaybackPaused = true;
+      pausedPlaybackRemainingMs = getCurrentPlaybackRemainingMs();
+      clearPlaybackTimers();
+
+      if (currentItem.type === "video") {
+        mediaVideo.pause();
+        if (Number.isFinite(mediaVideo.duration) && Number.isFinite(mediaVideo.currentTime)) {
+          const actualRemainingMs = Math.max(0, (mediaVideo.duration - mediaVideo.currentTime) * 1000);
+          pausedPlaybackRemainingMs = Math.min(pausedPlaybackRemainingMs, actualRemainingMs);
+        }
+      }
+    }
+
+    function resumePrimaryPlaybackFromSponsor() {
+      if (!primaryPlaybackPaused) return;
+      primaryPlaybackPaused = false;
+
+      if (pausedPlaybackRemainingMs <= 0) {
+        pausedPlaybackRemainingMs = 0;
+        advancePlayback();
+        return;
+      }
+
+      currentItemStartedAt = Date.now() - Math.max(0, currentItemTotalMs - pausedPlaybackRemainingMs);
+
+      if (currentItem?.type === "video") {
+        mediaVideo.play().catch((error) => {
+          handlePlaybackError(error, activePlayToken);
+        });
+      }
+
+      playbackTimer = setTimeout(() => {
+        advancePlayback();
+      }, pausedPlaybackRemainingMs);
+    }
+
+    function isTrustedPortalMessage(event) {
+      const origin = String(event.origin || "");
+      if (origin === "null") return true;
+      try {
+        const url = new URL(origin);
+        const hostname = String(url.hostname || "").toLowerCase();
+        return hostname === "localhost"
+          || hostname === "127.0.0.1"
+          || hostname === "bdn-client-portal.pages.dev"
+          || hostname.endsWith(".bdn-client-portal.pages.dev");
+      } catch {
+        return false;
+      }
+    }
+
+    function setPlaylistPinned(pinned, options = {}) {
+      const { broadcast = true } = options;
+      const nextPinned = Boolean(pinned);
+      const changed = playlistPinned !== nextPinned;
+      playlistPinned = nextPinned;
       localStorage.setItem(PLAYLIST_PINNED_KEY, String(playlistPinned));
       if (playlistPinToggle) {
         playlistPinToggle.checked = playlistPinned;
       }
       updatePlaylistPinStatus();
-      if (!playlistPinned && syncClient) {
-        syncClient.commitNow();
+      if (!changed || !broadcast) {
+        return;
       }
+      try {
+        window.parent?.postMessage({ type: "beacon-primary-pin-changed", pinned: playlistPinned }, "*");
+      } catch {}
+    }
+
+    function buildPrimaryRegionScope() {
+      return window.beaconIdentity?.buildRegionScope?.("primary") || "";
+    }
+
+    function buildPrimaryDeviceScope() {
+      return window.beaconIdentity?.buildDeviceScope?.("primary") || "";
+    }
+
+    async function resolveSyncBaseUrl() {
+      if (syncBaseUrl) return syncBaseUrl;
+      if (window.beaconRuntimeConfig?.getSyncUrl) {
+        syncBaseUrl = await window.beaconRuntimeConfig.getSyncUrl();
+      }
+      return syncBaseUrl;
+    }
+
+    function settingsUrlForScope(scope) {
+      if (!syncBaseUrl || !scope) return "";
+      return `${syncBaseUrl}/settings/${encodeURIComponent(scope)}`;
+    }
+
+    async function readScopeState(scope) {
+      const baseUrl = await resolveSyncBaseUrl();
+      const url = settingsUrlForScope(scope);
+      if (!baseUrl || !url) return null;
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function writeScopeState(scope, state, updatedBy) {
+      const baseUrl = await resolveSyncBaseUrl();
+      const url = settingsUrlForScope(scope);
+      if (!baseUrl || !url) return false;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-BDN-Updated-By": updatedBy || "device-admin"
+        },
+        body: JSON.stringify({
+          state,
+          meta: {
+            updatedBy: updatedBy || "device-admin"
+          }
+        })
+      });
+      return response.ok;
+    }
+
+    async function deleteScopeState(scope, updatedBy) {
+      const baseUrl = await resolveSyncBaseUrl();
+      const url = settingsUrlForScope(scope);
+      if (!baseUrl || !url) return false;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "X-BDN-Updated-By": updatedBy || "device-admin"
+        }
+      });
+      return response.ok;
+    }
+
+    async function startPrimarySyncClient(scope, seedIfMissing = true) {
+      if (!window.beaconSync || !scope) {
+        return false;
+      }
+      if (syncClient && typeof syncClient.stop === "function") {
+        syncClient.stop();
+      }
+      syncClient = window.beaconSync.createClient({
+        scope,
+        getState: exportSyncState,
+        applyState: applySyncState,
+        seedIfMissing
+      });
+      activeSyncScope = scope;
+      return syncClient.start();
+    }
+
+    function startPrimaryPinPolling() {
+      if (pinPollTimer) {
+        clearInterval(pinPollTimer);
+      }
+      pinPollTimer = setInterval(() => {
+        void refreshPinnedModeFromControlPlane();
+      }, 15000);
+    }
+
+    async function refreshPinnedModeFromControlPlane() {
+      const regionScope = buildPrimaryRegionScope();
+      const deviceScope = buildPrimaryDeviceScope();
+      if (!regionScope || !deviceScope) {
+        return false;
+      }
+
+      const payload = await readScopeState(deviceScope);
+      const hasDeviceOverride = Boolean(payload?.state && typeof payload.state === "object");
+
+      if (hasDeviceOverride) {
+        setPlaylistPinned(true);
+        applySyncState(payload.state);
+        if (activeSyncScope !== deviceScope) {
+          await startPrimarySyncClient(deviceScope, false);
+        }
+        return true;
+      }
+
+      setPlaylistPinned(false);
+      if (activeSyncScope !== regionScope) {
+        await startPrimarySyncClient(regionScope, true);
+      }
+      return false;
+    }
+
+    async function applyPrimaryPinMode(pinned, updatedBy = "device-admin") {
+      const regionScope = buildPrimaryRegionScope();
+      const deviceScope = buildPrimaryDeviceScope();
+      if (!regionScope || !deviceScope) {
+        setPlaylistPinned(Boolean(pinned));
+        return;
+      }
+
+      if (Boolean(pinned)) {
+        const snapshot = exportSyncState();
+        if (!snapshot) {
+          return;
+        }
+        const saved = await writeScopeState(deviceScope, snapshot, updatedBy);
+        if (!saved) {
+          return;
+        }
+        setPlaylistPinned(true);
+        await startPrimarySyncClient(deviceScope, false);
+        return;
+      }
+
+      const deleted = await deleteScopeState(deviceScope, updatedBy);
+      if (!deleted) {
+        return;
+      }
+      setPlaylistPinned(false);
+      await startPrimarySyncClient(regionScope, true);
     }
 
     function getActivePlaylist() {
@@ -849,6 +1606,8 @@
 
     function hideVideo() {
       mediaVideo.pause();
+      mediaVideo.onloadedmetadata = null;
+      mediaVideo.onplaying = null;
       mediaVideo.removeAttribute("src");
       mediaVideo.load();
       mediaVideo.style.display = "none";
@@ -858,6 +1617,11 @@
       clearPlaybackTimers();
       hideImages();
       hideVideo();
+      primaryPlaybackPaused = false;
+      pausedPlaybackRemainingMs = 0;
+      currentItem = null;
+      currentItemTotalMs = 0;
+      currentItemStartedAt = 0;
       mediaPlaceholder.style.display = "flex";
       mediaPlaceholder.textContent = message;
       currentType = null;
@@ -981,6 +1745,8 @@
 
     function playItem(item, options = {}) {
       clearPlaybackTimers();
+      primaryPlaybackPaused = false;
+      pausedPlaybackRemainingMs = 0;
       currentItem = item;
       activePlayToken += 1;
       loggedPlayToken = null;
@@ -990,6 +1756,8 @@
       const totalMs = duration * 1000 + dissolveDelay;
       const remainingMs = Math.max(0, totalMs - offsetMs);
       const startedAt = options.startedAt || (Date.now() - offsetMs);
+      currentItemTotalMs = totalMs;
+      currentItemStartedAt = startedAt;
       saveResumeState(playbackIndex, startedAt, item.src);
       const playSrc = resolveAssetUrl(item.src);
 
@@ -1022,6 +1790,7 @@
     }
 
     function advancePlayback() {
+      if (primaryPlaybackPaused) return;
       const list = getActivePlaylist();
       if (!list.length) {
         showPlaceholder("No media configured");
@@ -1036,6 +1805,8 @@
 
     function startPlayback() {
       clearPlaybackTimers();
+      primaryPlaybackPaused = false;
+      pausedPlaybackRemainingMs = 0;
       const list = getActivePlaylist();
       playbackIndex = 0;
       if (!list.length) {
@@ -1101,6 +1872,8 @@
 
     function startPlaybackAt(index, offsetMs = 0) {
       clearPlaybackTimers();
+      primaryPlaybackPaused = false;
+      pausedPlaybackRemainingMs = 0;
       const list = getActivePlaylist();
       if (!list.length) {
         showPlaceholder("No media configured");
@@ -1122,9 +1895,7 @@
       mediaFrame.style.setProperty("--dissolve-duration", `${seconds}s`);
       localStorage.setItem(DISSOLVE_ENABLED_KEY, dissolveEnabled);
       localStorage.setItem(DISSOLVE_DURATION_KEY, String(seconds));
-      if (syncClient && !playlistPinned) {
-        syncClient.commit();
-      }
+      commitPrimarySyncState();
     }
 
     function loadDissolveSettings() {
@@ -1139,18 +1910,21 @@
     }
 
     function exportSyncState() {
-      if (playlistPinned) return null;
       return {
         playlists,
         activePlaylistName,
         dissolveEnabled: dissolveToggle.checked,
-        dissolveDuration: sanitizeDissolveDuration(dissolveDurationInput.value)
+        dissolveDuration: sanitizeDissolveDuration(dissolveDurationInput.value),
+        sponsorVideo: mainSponsorVideo,
+        sponsorInterval: mainSponsorInterval,
+        overlayEnabled: triviaOverlayEnabled,
+        overlayPlaylist: triviaOverlayPlaylist,
+        overlayStartEpoch: triviaOverlayStartEpoch
       };
     }
 
     function applySyncState(state) {
       if (!state || typeof state !== "object") return;
-      if (playlistPinned) return;
       if (state.playlists && typeof state.playlists === "object") {
         playlists = state.playlists;
       }
@@ -1175,6 +1949,26 @@
         dissolveDurationInput.value = sanitizeDissolveDuration(state.dissolveDuration);
       }
       applyDissolveSettings();
+      if (state.sponsorVideo !== undefined || state.sponsorInterval !== undefined) {
+        applyMainSponsorSettings(
+          state.sponsorVideo !== undefined ? state.sponsorVideo : mainSponsorVideo,
+          state.sponsorInterval !== undefined ? state.sponsorInterval : mainSponsorInterval,
+          {
+            normalizeVideo: false,
+            persist: true,
+            notify: true
+          }
+        );
+      }
+      if (state.overlayEnabled !== undefined || state.overlayPlaylist !== undefined || state.overlayStartEpoch !== undefined) {
+        applyTriviaOverlaySettings({
+          enabled: state.overlayEnabled !== undefined ? state.overlayEnabled : triviaOverlayEnabled,
+          playlist: state.overlayPlaylist !== undefined ? state.overlayPlaylist : triviaOverlayPlaylist,
+          startEpoch: state.overlayStartEpoch !== undefined ? state.overlayStartEpoch : triviaOverlayStartEpoch
+        }, {
+          persist: true
+        });
+      }
       warmPrimaryMediaCache();
     }
 
@@ -1290,9 +2084,86 @@
       applyDissolveSettings();
     });
 
+    [
+      [sponsorInterval15, 15],
+      [sponsorInterval30, 30],
+      [sponsorInterval60, 60]
+    ].forEach(([input, interval]) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          setSelectedMainSponsorInterval(interval);
+          return;
+        }
+        if (getSelectedMainSponsorInterval() === interval) {
+          setSelectedMainSponsorInterval(0);
+        }
+      });
+    });
+
+    saveSponsorSettingsButton.addEventListener("click", () => {
+      saveMainSponsorSettings();
+    });
+
+    overlayEnabledToggle.addEventListener("change", () => {
+      applyTriviaOverlaySettings({
+        enabled: overlayEnabledToggle.checked,
+        playlist: triviaOverlayPlaylist,
+        startEpoch: triviaOverlayStartEpoch
+      }, {
+        commit: true
+      });
+    });
+
+    addOverlayItemButton.addEventListener("click", () => {
+      addTriviaOverlayItem();
+    });
+
+    overlayPlaylistItems.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!target.dataset.action) return;
+
+      const index = Number(target.dataset.index);
+      if (!Number.isInteger(index) || index < 0 || index >= triviaOverlayPlaylist.length) return;
+
+      if (target.dataset.action === "remove") {
+        triviaOverlayPlaylist.splice(index, 1);
+      } else if (target.dataset.action === "up" && index > 0) {
+        const previous = triviaOverlayPlaylist[index - 1];
+        triviaOverlayPlaylist[index - 1] = triviaOverlayPlaylist[index];
+        triviaOverlayPlaylist[index] = previous;
+      } else if (target.dataset.action === "down" && index < triviaOverlayPlaylist.length - 1) {
+        const next = triviaOverlayPlaylist[index + 1];
+        triviaOverlayPlaylist[index + 1] = triviaOverlayPlaylist[index];
+        triviaOverlayPlaylist[index] = next;
+      }
+
+      applyTriviaOverlaySettings({
+        enabled: triviaOverlayEnabled,
+        playlist: triviaOverlayPlaylist,
+        startEpoch: triviaOverlayStartEpoch
+      }, {
+        commit: true
+      });
+    });
+
+    overlayPlaylistItems.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!target.classList.contains("item-duration")) return;
+      const index = Number(target.dataset.index);
+      if (!Number.isInteger(index) || !triviaOverlayPlaylist[index]) return;
+      triviaOverlayPlaylist[index].durationSeconds = normalizeTriviaOverlayDuration(target.value);
+      applyTriviaOverlaySettings({
+        enabled: triviaOverlayEnabled,
+        playlist: triviaOverlayPlaylist,
+        startEpoch: triviaOverlayStartEpoch
+      }, {
+        commit: true
+      });
+    });
+
     if (playlistPinToggle) {
-      playlistPinToggle.addEventListener("change", () => {
-        setPlaylistPinned(playlistPinToggle.checked);
+      playlistPinToggle.addEventListener("change", async () => {
+        await applyPrimaryPinMode(playlistPinToggle.checked, "screen-local");
       });
     }
 
@@ -1306,9 +2177,23 @@
       updateLogStatus();
     });
 
-    window.addEventListener("message", (event) => {
+    window.addEventListener("message", async (event) => {
       const data = event.data;
-      if (!data || (data.type !== "beacon-request-open" && data.type !== "beacon-request-close")) return;
+      if (!data) return;
+      if (data.type === "bdn-portal-primary-pin") {
+        if (!isTrustedPortalMessage(event)) return;
+        await applyPrimaryPinMode(Boolean(data.pinned), "portal-admin");
+        return;
+      }
+      if (data.type === "beacon-primary-pause") {
+        pausePrimaryPlaybackForSponsor();
+        return;
+      }
+      if (data.type === "beacon-primary-resume") {
+        resumePrimaryPlaybackFromSponsor();
+        return;
+      }
+      if (data.type !== "beacon-request-open" && data.type !== "beacon-request-close") return;
       if (data.target === "primary") {
         if (data.type === "beacon-request-open" && !canOpenEmbeddedEditor()) return;
         setSettingsVisible(data.type === "beacon-request-open");
@@ -1384,23 +2269,27 @@
       populateAssetSelect();
       renderPlaylistItems();
       loadDissolveSettings();
+      loadMainSponsorSettings();
+      loadTriviaOverlaySettings();
       loadPlaybackLog();
+      if (window.beaconSync) {
+        syncBaseUrl = await resolveSyncBaseUrl();
+        const usingDeviceOverride = await refreshPinnedModeFromControlPlane();
+        if (!usingDeviceOverride) {
+          await startPrimarySyncClient(buildPrimaryRegionScope() || window.beaconIdentity?.buildSyncScope?.("primary") || "primary", true);
+        }
+        startPrimaryPinPolling();
+      }
+
       const resume = resolveResumePlayback(getActivePlaylist());
       if (resume) {
         startPlaybackAt(resume.index, resume.offsetMs);
       } else {
         startPlayback();
       }
-
-      if (window.beaconSync) {
-        syncClient = window.beaconSync.createClient({
-          scope: window.beaconIdentity?.buildSyncScope?.("primary") || "primary",
-          getState: exportSyncState,
-          applyState: applySyncState
-        });
-        syncClient.start();
-      }
+      refreshTriviaOverlayScheduler();
     })();
   </script>
 </body>
 </html>
+
