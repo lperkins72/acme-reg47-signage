@@ -138,7 +138,7 @@
       next.textBackgroundColor = String(next.textBackgroundColor || defaults.textBackgroundColor);
       next.imagePath = String(next.imagePath || defaults.imagePath);
       next.imageStyle = ["ghost", "solid"].includes(next.imageStyle) ? next.imageStyle : defaults.imageStyle;
-      next.imageHeightPx = clampNumber(next.imageHeightPx, 20, 140, defaults.imageHeightPx);
+      next.imageHeightPx = clampNumber(next.imageHeightPx, 20, 220, defaults.imageHeightPx);
       next.imageOpacity = clampNumber(next.imageOpacity, 0.05, 1, defaults.imageOpacity);
       return next;
     }

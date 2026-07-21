@@ -890,7 +890,7 @@
                 </select>
               </label>
               <label>Image Height (px)
-                <input data-field="imageHeightPx" type="number" min="20" max="140" step="1">
+                <input data-field="imageHeightPx" type="number" min="20" max="220" step="1">
               </label>
               <label>Image Opacity
                 <input data-field="imageOpacity" type="number" min="0.05" max="1" step="0.01">
@@ -1042,7 +1042,7 @@
       next.textBackgroundColor = String(next.textBackgroundColor || defaults.textBackgroundColor);
       next.imagePath = String(next.imagePath || defaults.imagePath);
       next.imageStyle = ["ghost", "solid"].includes(next.imageStyle) ? next.imageStyle : defaults.imageStyle;
-      next.imageHeightPx = clampNumber(next.imageHeightPx, 20, 140, defaults.imageHeightPx);
+      next.imageHeightPx = clampNumber(next.imageHeightPx, 20, 220, defaults.imageHeightPx);
       next.imageOpacity = clampNumber(next.imageOpacity, 0.05, 1, defaults.imageOpacity);
       return next;
     }
