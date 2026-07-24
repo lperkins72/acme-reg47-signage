@@ -1,6 +1,9 @@
 (function () {
   const CONFIG_PATH = "data/sync.json";
   const DEFAULT_DEBOUNCE_MS = 250;
+  const RECONNECT_DELAY_MS = 90000;
+  const DEFAULT_FALLBACK_POLL_MS = 30000;
+  const SECONDARY_FALLBACK_POLL_MS = 120000;
 
   function normalizeBaseUrl(value) {
     if (!value) return "";
@@ -32,6 +35,14 @@
     return `${wsBase}/connect/${encodeURIComponent(scope)}`;
   }
 
+  function inferFallbackPollMs(scope) {
+    const normalized = String(scope || "").trim().toLowerCase();
+    if (normalized === "secondary" || normalized.endsWith(":zone:secondary")) {
+      return SECONDARY_FALLBACK_POLL_MS;
+    }
+    return DEFAULT_FALLBACK_POLL_MS;
+  }
+
   function createClient(options) {
     const scope = options.scope;
     const getState = options.getState;
@@ -39,18 +50,26 @@
     const debounceMs = Number.isFinite(options.debounceMs)
       ? options.debounceMs
       : DEFAULT_DEBOUNCE_MS;
+    const fallbackPollMs = Number.isFinite(options.fallbackPollMs) && options.fallbackPollMs >= 1000
+      ? options.fallbackPollMs
+      : inferFallbackPollMs(scope);
 
     let baseUrl = "";
     let enabled = false;
     let ready = false;
     let applying = false;
     let connected = false;
+    let fallbackPolling = false;
     let lastStateJson = "";
     let commitTimer = null;
+    let reconnectTimer = null;
+    let fallbackPollTimer = null;
     let socket = null;
+    let stateFetchInFlight = false;
+    const seedIfMissing = options.seedIfMissing !== false;
 
     function emitStatus() {
-      const status = { configured: enabled, connected, ready };
+      const status = { configured: enabled, connected, ready, fallbackPolling, fallbackPollMs };
       if (typeof options.onStatus === "function") {
         options.onStatus(status);
       }
@@ -84,16 +103,64 @@
       }
     }
 
-    async function fetchState() {
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    }
+
+    function stopFallbackPolling() {
+      if (fallbackPollTimer) {
+        clearInterval(fallbackPollTimer);
+        fallbackPollTimer = null;
+      }
+      if (fallbackPolling) {
+        fallbackPolling = false;
+        emitStatus();
+      }
+    }
+
+    function scheduleReconnect() {
+      if (!enabled || reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, RECONNECT_DELAY_MS);
+    }
+
+    async function fetchStatePayload() {
       try {
         const response = await fetch(settingsUrl(baseUrl, scope), { cache: "no-store" });
         if (!response.ok) return null;
         const json = await response.json();
-        if (!json || typeof json.state !== "object") return null;
-        return json.state;
+        if (!json || typeof json !== "object") return null;
+        return json;
       } catch {
         return null;
       }
+    }
+
+    async function pollFallbackState() {
+      if (!enabled || !ready || connected || stateFetchInFlight) return;
+      stateFetchInFlight = true;
+      try {
+        const payload = await fetchStatePayload();
+        if (payload && payload.state && typeof payload.state === "object") {
+          applyRemote(payload.state);
+        }
+      } finally {
+        stateFetchInFlight = false;
+      }
+    }
+
+    function startFallbackPolling() {
+      if (!enabled || !ready || fallbackPollTimer) return;
+      fallbackPolling = true;
+      emitStatus();
+      fallbackPollTimer = setInterval(() => {
+        void pollFallbackState();
+      }, fallbackPollMs);
     }
 
     async function commitNow() {
@@ -126,18 +193,32 @@
 
     function connect() {
       if (!enabled) return;
+      clearReconnectTimer();
       const url = socketUrl(baseUrl, scope);
-      try {
-        socket = new WebSocket(url);
-      } catch {
+
+      function handleDisconnect() {
+        if (socket) {
+          try {
+            socket.close();
+          } catch {}
+        }
         socket = null;
         connected = false;
         emitStatus();
+        startFallbackPolling();
+        scheduleReconnect();
+      }
+
+      try {
+        socket = new WebSocket(url);
+      } catch {
+        handleDisconnect();
         return;
       }
 
       socket.addEventListener("open", () => {
         connected = true;
+        stopFallbackPolling();
         emitStatus();
       });
 
@@ -154,10 +235,11 @@
       });
 
       socket.addEventListener("close", () => {
-        socket = null;
-        connected = false;
-        emitStatus();
-        setTimeout(connect, 90000);
+        handleDisconnect();
+      });
+
+      socket.addEventListener("error", () => {
+        handleDisconnect();
       });
     }
 
@@ -169,10 +251,10 @@
       }
       enabled = true;
       emitStatus();
-      const remoteState = await fetchState();
-      if (remoteState) {
-        applyRemote(remoteState);
-      } else {
+      const remotePayload = await fetchStatePayload();
+      if (remotePayload && remotePayload.state && typeof remotePayload.state === "object") {
+        applyRemote(remotePayload.state);
+      } else if (seedIfMissing) {
         ready = true;
         await commitNow();
       }
@@ -182,8 +264,28 @@
       return true;
     }
 
+    function stop() {
+      enabled = false;
+      ready = false;
+      if (commitTimer) {
+        clearTimeout(commitTimer);
+        commitTimer = null;
+      }
+      clearReconnectTimer();
+      stopFallbackPolling();
+      if (socket) {
+        try {
+          socket.close();
+        } catch {}
+        socket = null;
+      }
+      connected = false;
+      emitStatus();
+    }
+
     return {
       start,
+      stop,
       commit,
       commitNow,
       isApplying: () => applying
