@@ -157,7 +157,7 @@
         socket = null;
         connected = false;
         emitStatus();
-        setTimeout(connect, 2000);
+        setTimeout(connect, 90000);
       });
     }
 
